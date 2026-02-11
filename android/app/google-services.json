@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "796694555251",
+    "project_id": "eduops-25a60",
+    "storage_bucket": "eduops-25a60.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:796694555251:android:a867432414aec8b7f2d806",
+        "android_client_info": {
+          "package_name": "com.example.a007_eduops"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjtH6JPH27lCtkmQrlRavzKTBaWnTuzWk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
