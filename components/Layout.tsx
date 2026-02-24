@@ -1,4 +1,7 @@
-import { Link, useLocation } from "react-router";
+"use client";
+
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { useState } from "react";
 import {
   LayoutDashboard,
@@ -40,7 +43,7 @@ const parentNavigation = [
 ];
 
 export default function Layout({ children, userRole = "admin" }: LayoutProps) {
-  const location = useLocation();
+  const location = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigation = userRole === "parent" ? parentNavigation : adminNavigation;
   const userName = userRole === "parent" ? "Alina Beknazarova" : "Admin User";
@@ -113,12 +116,12 @@ export default function Layout({ children, userRole = "admin" }: LayoutProps) {
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navigation.map((item) => {
-            const isActive = location.pathname === item.href;
+            const isActive = location === item.href;
             const Icon = item.icon;
             return (
               <Link
                 key={item.name}
-                to={item.href}
+                href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   isActive

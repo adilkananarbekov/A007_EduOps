@@ -1,4 +1,5 @@
-import { Link, useLocation } from "react-router";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Home, Calendar, CreditCard, MessageSquare, Bell, User } from "lucide-react";
 
 interface MobileLayoutProps {
@@ -15,7 +16,7 @@ const bottomNavigation = [
 ];
 
 export default function MobileLayout({ children, title = "Dashboard", showHeader = true }: MobileLayoutProps) {
-  const location = useLocation();
+  const location = usePathname();
 
   return (
     <div className="flex flex-col h-screen bg-white">
@@ -51,12 +52,12 @@ export default function MobileLayout({ children, title = "Dashboard", showHeader
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border">
         <nav className="flex items-center justify-around px-2 py-3">
           {bottomNavigation.map((item) => {
-            const isActive = location.pathname === item.href;
+            const isActive = location === item.href;
             const Icon = item.icon;
             return (
               <Link
                 key={item.name}
-                to={item.href}
+                href={item.href}
                 className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors ${
                   isActive
                     ? "text-primary"
