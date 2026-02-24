@@ -3,18 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-// import { Button } from "../components/ui/button";
-// import { Input } from "../components/ui/input";
-// import { Label } from "../components/ui/label";
+import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
+import { Label } from "./components/ui/label";
 
 export default function Login() {
   const navigate = useRouter();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
 
-  // const handleLogin = (e: React.FormEvent) => {
-  const handleLogin = () => {
-    // e.preventDefault();
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
     // Mock login - redirect to admin dashboard
     navigate.push("/admin");
   };
@@ -36,8 +35,8 @@ export default function Login() {
           {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
-              <label htmlFor="phone">Phone Number</label>
-              <input
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
                 id="phone"
                 type="tel"
                 placeholder="+996 XXX XXX XXX"
@@ -49,21 +48,21 @@ export default function Login() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="password">Password</label>
-              <input
+              <Label htmlFor="password">Password</Label>
+              <Input
                 id="password"
                 type="password"
                 placeholder="Enter your password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e: any) => setPassword(e.target.value)}
                 className="border-border"
                 required
               />
             </div>
 
-            <button type="submit" className="w-full bg-primary hover:bg-primary/90">
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
               Log In
-            </button>
+            </Button>
 
             <div className="text-center">
               <a href="#" className="text-sm text-muted-foreground hover:text-foreground">
@@ -77,16 +76,16 @@ export default function Login() {
             <p className="text-xs text-muted-foreground text-center mb-3">Quick Demo Navigation:</p>
             <div className="flex flex-wrap gap-2 justify-center">
               <Link href="/admin">
-                <button className="text-xs border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5">Admin Dashboard</button>
+                <Button variant="outline" size="sm" className="text-xs">Admin Dashboard</Button>
               </Link>
               <Link href="/students">
-                <button className="text-xs border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5">Students List</button>
+                <Button variant="outline" size="sm" className="text-xs">Students List</Button>
               </Link>
               <Link href="/attendance/1">
-                <button className="text-xs border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5">Attendance</button>
+                <Button variant="outline" size="sm" className="text-xs">Attendance</Button>
               </Link>
               <Link href="/parent">
-                <button className="text-xs border-accent text-accent border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5">Parent/Student View</button>
+                <Button variant="outline" size="sm" className="text-xs border-accent text-accent">Parent/Student View</Button>
               </Link>
             </div>
           </div>
