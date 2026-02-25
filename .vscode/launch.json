@@ -1,0 +1,38 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Flutter: Android Device",
+            "type": "dart",
+            "request": "launch",
+            "deviceId": "android-device",
+            "args": []
+        },
+        {
+            "name": "Flutter: iOS Simulator",
+            "type": "dart",
+            "request": "launch",
+            "deviceId": "iPhone",
+            "args": [
+                "-d",
+                "iPhone"
+            ]
+        },
+        {
+            "name": "Flutter: Windows Desktop",
+            "type": "dart",
+            "request": "launch",
+            "deviceId": "windows",
+            "args": [
+                "-d",
+                "windows"
+            ]
+        },
+        {
+            "name": "Flutter: All Connected Devices",
+            "type": "dart",
+            "request": "launch",
+            "args": []
+        }
+    ]
+}

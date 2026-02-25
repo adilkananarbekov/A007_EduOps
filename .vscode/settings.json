@@ -1,0 +1,15 @@
+{
+  "dart.flutterSdkPath": "flutter",
+  "dart.enableSdkFormatter": true,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "Dart-Code.dart-code",
+  "[dart]": {
+    "editor.defaultFormatter": "Dart-Code.dart-code",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": true
+    }
+  },
+  "dart.lineLength": 80,
+  "flutter.deviceEnabledAsDefault": true
+}
