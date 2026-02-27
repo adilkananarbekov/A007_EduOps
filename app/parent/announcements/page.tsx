@@ -122,7 +122,7 @@ export default function MobileAnnouncements() {
                   <div className="flex items-start gap-3">
                     {/* Avatar */}
                     <div
-                      className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                      className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
                         announcement.senderType === "admin" ? "bg-primary" : "bg-accent"
                       }`}
                     >
