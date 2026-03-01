@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local automation and generated report artifacts
+.codex_tmp_*
+.playwright-cli/
+output/
+tmp/
