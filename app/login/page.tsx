@@ -9,13 +9,28 @@ import { Label } from "@/components/ui/label";
 
 export default function Login() {
   const navigate = useRouter();
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     // Mock login - redirect to admin dashboard
-    navigate.push("/admin");
+    const res = await fetch("http://136.116.64.6/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    
+    if (!res.ok) {
+      console.error(res.status);
+      return;
+    }
+
+    const data = await res.json();
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("role", data.role);
+    // console.log(data);
+    navigate.push("/");
   };
 
   return (
@@ -35,13 +50,13 @@ export default function Login() {
           {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="phone"
-                type="tel"
-                placeholder="+996 XXX XXX XXX"
-                value={phone}
-                onChange={(e: any) => setPhone(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="user@gmail.com"
+                value={email}
+                onChange={(e: any) => setEmail(e.target.value)}
                 className="border-border"
                 required
               />

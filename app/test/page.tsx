@@ -7,10 +7,10 @@ async function createStudent() {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     }
-});
+  });
 
-  const data = await res.json();
-  console.log(data);
+  // const data = await res.json();
+  // console.log(data);
 }
 
 export default async function tst() {
