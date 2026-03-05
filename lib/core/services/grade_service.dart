@@ -53,15 +53,15 @@ class GradeService {
     String? notes,
   }) async {
     final response = await _apiClient.post(
-      ApiConstants.grades,
+      ApiConstants.teacherGrades,
       body: {
         'studentId': studentId,
-        'subjectId': subjectId,
-        'score': score,
-        'maxScore': maxScore,
+        'takenClassId': subjectId,
+        'value': score,
+        'maxValue': maxScore,
         'gradeType': gradeType,
         'date': date.toIso8601String().split('T')[0],
-        'notes': notes,
+        'description': notes,
       },
     );
     return Grade.fromJson(response as Map<String, dynamic>);

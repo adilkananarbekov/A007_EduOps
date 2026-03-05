@@ -2,6 +2,22 @@ import '../api/api_client.dart';
 import '../api/api_constants.dart';
 import '../models/attendance.dart';
 
+class AttendanceMarkingRecord {
+  final int studentId;
+  final AttendanceStatus status;
+  final String? notes;
+
+  const AttendanceMarkingRecord({
+    required this.studentId,
+    required this.status,
+    this.notes,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {'studentId': studentId, 'status': status.name, 'notes': notes};
+  }
+}
+
 /// Service for attendance-related operations
 class AttendanceService {
   final ApiClient _apiClient;
@@ -50,24 +66,22 @@ class AttendanceService {
   }
 
   /// Mark attendance (teacher/admin)
-  Future<Attendance> markAttendance({
-    required int studentId,
+  Future<List<Attendance>> markAttendance({
     required int scheduleId,
     required DateTime date,
-    required AttendanceStatus status,
-    String? notes,
+    required List<AttendanceMarkingRecord> records,
   }) async {
     final response = await _apiClient.post(
-      ApiConstants.attendance,
+      ApiConstants.teacherAttendance,
       body: {
-        'studentId': studentId,
         'scheduleId': scheduleId,
         'date': date.toIso8601String().split('T')[0],
-        'status': status.name,
-        'notes': notes,
+        'attendanceRecords': records.map((record) => record.toJson()).toList(),
       },
     );
-    return Attendance.fromJson(response as Map<String, dynamic>);
+    return (response as List)
+        .map((json) => Attendance.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   /// Get attendance for a schedule on a specific date

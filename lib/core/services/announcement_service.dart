@@ -32,12 +32,11 @@ class AnnouncementService {
     bool isGlobal = false,
   }) async {
     final response = await _apiClient.post(
-      ApiConstants.announcements,
+      ApiConstants.announcementsAdmin,
       body: {
         'title': title,
         'content': content,
-        'classGroupId': classGroupId,
-        'isGlobal': isGlobal,
+        'targetStudentGroupId': isGlobal ? null : classGroupId,
       },
     );
     return Announcement.fromJson(response as Map<String, dynamic>);

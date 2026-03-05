@@ -11,18 +11,26 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthResponse?>> {
     _initialize();
   }
 
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint(message);
+    }
+  }
+
   /// Initialize auth state from storage
   Future<void> _initialize() async {
-    debugPrint('[AUTH] _initialize started');
+    _log('[AUTH] Session restore started');
     try {
       await _authService.initialize();
-      debugPrint('[AUTH] _authService.initialize() done');
       final user = await _authService.getCurrentUser();
-      debugPrint('[AUTH] getCurrentUser returned: ${user?.email ?? 'null'}');
       state = AsyncValue.data(user);
-      debugPrint('[AUTH] State set to data (isLoading=false)');
+      _log(
+        user == null
+            ? '[AUTH] No persisted session found'
+            : '[AUTH] Persisted session restored',
+      );
     } catch (e, stack) {
-      debugPrint('[AUTH] _initialize ERROR: $e');
+      _log('[AUTH] Session restore failed: $e');
       state = AsyncValue.error(e, stack);
     }
   }
@@ -57,6 +65,21 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthResponse?>> {
       state = AsyncValue.data(user);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
+    }
+  }
+
+  Future<bool> refreshSession() async {
+    try {
+      final authResponse = await _authService.refreshSession();
+      if (authResponse == null) {
+        return false;
+      }
+
+      state = AsyncValue.data(authResponse);
+      return true;
+    } catch (e) {
+      _log('[AUTH] Token refresh failed: $e');
+      return false;
     }
   }
 

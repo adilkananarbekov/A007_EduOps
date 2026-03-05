@@ -1,3 +1,5 @@
+// ignore_for_file: constant_identifier_names
+
 /// Attendance status enumeration
 enum AttendanceStatus {
   PRESENT,
@@ -44,6 +46,8 @@ class Attendance {
   final DateTime date;
   final AttendanceStatus status;
   final String? notes;
+  final String? markedByName;
+  final DateTime? markedAt;
 
   Attendance({
     required this.id,
@@ -54,18 +58,26 @@ class Attendance {
     required this.date,
     required this.status,
     this.notes,
+    this.markedByName,
+    this.markedAt,
   });
 
   factory Attendance.fromJson(Map<String, dynamic> json) {
+    int asInt(dynamic value) => (value as num).toInt();
+
     return Attendance(
-      id: json['id'] as int,
-      studentId: json['studentId'] as int,
+      id: asInt(json['id']),
+      studentId: asInt(json['studentId']),
       studentName: json['studentName'] as String?,
-      scheduleId: json['scheduleId'] as int,
+      scheduleId: asInt(json['scheduleId']),
       subjectName: json['subjectName'] as String?,
       date: DateTime.parse(json['date'] as String),
       status: AttendanceStatus.fromString(json['status'] as String),
       notes: json['notes'] as String?,
+      markedByName: json['markedByName'] as String?,
+      markedAt: json['markedAt'] != null
+          ? DateTime.parse(json['markedAt'] as String)
+          : null,
     );
   }
 
@@ -79,6 +91,8 @@ class Attendance {
       'date': date.toIso8601String(),
       'status': status.name,
       'notes': notes,
+      'markedByName': markedByName,
+      'markedAt': markedAt?.toIso8601String(),
     };
   }
 }
@@ -102,13 +116,22 @@ class AttendanceStats {
   });
 
   factory AttendanceStats.fromJson(Map<String, dynamic> json) {
+    final present = (json['presentDays'] ?? json['present'] ?? 0) as num;
+    final absent = (json['absentDays'] ?? json['absent'] ?? 0) as num;
+    final late = (json['lateDays'] ?? json['late'] ?? 0) as num;
+    final excused = (json['excusedDays'] ?? json['excused'] ?? 0) as num;
+    final total =
+        (json['totalDays'] as num?) ?? (present + absent + late + excused);
+
     return AttendanceStats(
-      totalDays: json['totalDays'] as int,
-      presentDays: json['presentDays'] as int,
-      absentDays: json['absentDays'] as int,
-      lateDays: json['lateDays'] as int,
-      excusedDays: json['excusedDays'] as int,
-      attendanceRate: (json['attendanceRate'] as num).toDouble(),
+      totalDays: total.toInt(),
+      presentDays: present.toInt(),
+      absentDays: absent.toInt(),
+      lateDays: late.toInt(),
+      excusedDays: excused.toInt(),
+      attendanceRate:
+          (json['attendanceRate'] as num?)?.toDouble() ??
+          (total == 0 ? 0 : (present / total) * 100),
     );
   }
 

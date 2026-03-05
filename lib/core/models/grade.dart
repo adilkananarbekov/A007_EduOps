@@ -5,11 +5,14 @@ class Grade {
   final String? studentName;
   final int subjectId;
   final String subjectName;
+  final int? teacherId;
+  final String? teacherName;
   final double score;
   final double maxScore;
   final String? gradeType;
   final DateTime date;
   final String? notes;
+  final DateTime? createdAt;
 
   Grade({
     required this.id,
@@ -17,25 +20,44 @@ class Grade {
     this.studentName,
     required this.subjectId,
     required this.subjectName,
+    this.teacherId,
+    this.teacherName,
     required this.score,
     required this.maxScore,
     this.gradeType,
     required this.date,
     this.notes,
+    this.createdAt,
   });
 
   factory Grade.fromJson(Map<String, dynamic> json) {
+    int asInt(dynamic value) => (value as num).toInt();
+
+    final subjectIdValue = json['subjectId'] ?? json['takenClassId'];
+    final subjectId = subjectIdValue is num ? subjectIdValue.toInt() : 0;
+    final subjectName =
+        json['subjectName'] as String? ??
+        json['takenClassName'] as String? ??
+        json['className'] as String? ??
+        'Class #$subjectId';
+
     return Grade(
-      id: json['id'] as int,
-      studentId: json['studentId'] as int,
+      id: asInt(json['id']),
+      studentId: asInt(json['studentId']),
       studentName: json['studentName'] as String?,
-      subjectId: json['subjectId'] as int,
-      subjectName: json['subjectName'] as String,
-      score: (json['score'] as num).toDouble(),
-      maxScore: (json['maxScore'] as num).toDouble(),
+      subjectId: subjectId,
+      subjectName: subjectName,
+      teacherId: (json['teacherId'] as num?)?.toInt(),
+      teacherName: json['teacherName'] as String?,
+      score: ((json['score'] ?? json['value']) as num).toDouble(),
+      maxScore: ((json['maxScore'] ?? json['maxValue'] ?? 100) as num)
+          .toDouble(),
       gradeType: json['gradeType'] as String?,
       date: DateTime.parse(json['date'] as String),
-      notes: json['notes'] as String?,
+      notes: (json['notes'] ?? json['description']) as String?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
     );
   }
 
@@ -46,11 +68,17 @@ class Grade {
       'studentName': studentName,
       'subjectId': subjectId,
       'subjectName': subjectName,
+      'teacherId': teacherId,
+      'teacherName': teacherName,
       'score': score,
+      'value': score,
       'maxScore': maxScore,
+      'maxValue': maxScore,
       'gradeType': gradeType,
       'date': date.toIso8601String(),
       'notes': notes,
+      'description': notes,
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 

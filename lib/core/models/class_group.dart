@@ -15,12 +15,19 @@ class ClassGroup {
   });
 
   factory ClassGroup.fromJson(Map<String, dynamic> json) {
+    int? asInt(dynamic value) => value == null ? null : (value as num).toInt();
+
+    final students = json['students'];
+
     return ClassGroup(
-      id: json['id'] as int,
+      id: asInt(json['id']) ?? 0,
       name: json['name'] as String,
-      grade: json['grade'] as int?,
+      grade: asInt(json['grade']) ?? asInt(json['year']),
       monthlyFee: json['monthlyFee'] as int?,
-      studentCount: (json['studentCount'] as num?)?.toInt(),
+      studentCount:
+          asInt(json['studentCount']) ??
+          asInt(json['student_count']) ??
+          (students is List ? students.length : null),
     );
   }
 

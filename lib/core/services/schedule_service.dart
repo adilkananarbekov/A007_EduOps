@@ -49,9 +49,8 @@ class ScheduleService {
     final response = await _apiClient.post(
       ApiConstants.schedule,
       body: {
-        'classGroupId': classGroupId,
-        'subjectId': subjectId,
-        'teacherId': teacherId,
+        'studentGroupId': classGroupId,
+        'classId': subjectId,
         'dayOfWeek': dayOfWeek,
         'startTime': startTime,
         'endTime': endTime,

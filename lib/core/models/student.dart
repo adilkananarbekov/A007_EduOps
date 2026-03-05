@@ -31,13 +31,24 @@ class Student {
   });
 
   factory Student.fromJson(Map<String, dynamic> json) {
-    // Backend sends "name" as combined name; fall back to firstName+lastName
+    int? asInt(dynamic value) => value == null ? null : (value as num).toInt();
+
     final name =
         json['name'] as String? ??
-        '${json['firstName'] ?? ''} ${json['lastName'] ?? ''}'.trim();
+        json['fullName'] as String? ??
+        json['full_name'] as String? ??
+        '${json['firstName'] ?? json['first_name'] ?? ''} ${json['lastName'] ?? json['last_name'] ?? ''}'
+            .trim();
+
+    final groupId =
+        asInt(json['classGroupId']) ??
+        asInt(json['class_group_id']) ??
+        asInt(json['studentGroupId']) ??
+        asInt(json['student_group_id']);
+
     return Student(
-      id: json['id'] as int,
-      userId: json['userId'] as int?,
+      id: asInt(json['id']) ?? 0,
+      userId: asInt(json['userId']) ?? asInt(json['user_id']),
       name: name.isNotEmpty ? name : 'Unknown',
       email: json['email'] as String,
       phoneNumber: json['phoneNumber'] as String?,
@@ -45,12 +56,19 @@ class Student {
       dateOfBirth: json['dateOfBirth'] != null
           ? DateTime.tryParse(json['dateOfBirth'] as String)
           : null,
-      classGroupId: json['classGroupId'] as int?,
-      classGroupName: json['classGroupName'] as String?,
-      studentNumber: json['studentNumber'] as String?,
-      accountNumber: json['accountNumber'] as String?,
+      classGroupId: groupId,
+      classGroupName:
+          json['classGroupName'] as String? ??
+          json['class_group_name'] as String? ??
+          json['studentGroupName'] as String? ??
+          json['student_group_name'] as String?,
+      studentNumber:
+          json['studentNumber'] as String? ?? json['student_number'] as String?,
+      accountNumber:
+          json['accountNumber'] as String? ?? json['account_number'] as String?,
       parentEmail: json['parentEmail'] as String?,
-      parentPhone: json['parentPhone'] as String?,
+      parentPhone:
+          json['parentPhone'] as String? ?? json['parent_phone'] as String?,
     );
   }
 

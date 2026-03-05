@@ -27,6 +27,16 @@ class Schedule {
   });
 
   factory Schedule.fromJson(Map<String, dynamic> json) {
+    int asInt(dynamic value, {int fallback = 0}) {
+      if (value is num) {
+        return value.toInt();
+      }
+      if (value is String) {
+        return int.tryParse(value) ?? fallback;
+      }
+      return fallback;
+    }
+
     // Helper to convert LocalTime object or string to HH:mm string
     String parseTime(dynamic timeValue) {
       if (timeValue == null) return '00:00';
@@ -40,12 +50,17 @@ class Schedule {
     }
 
     return Schedule(
-      id: json['id'] as int,
-      classGroupId: json['classGroupId'] as int,
-      classGroupName: json['classGroupName'] as String?,
-      subjectId: json['subjectId'] as int,
-      subjectName: json['subjectName'] as String,
-      teacherId: json['teacherId'] as int,
+      id: asInt(json['id']),
+      classGroupId: asInt(json['classGroupId'] ?? json['studentGroupId']),
+      classGroupName:
+          json['classGroupName'] as String? ??
+          json['studentGroupName'] as String?,
+      subjectId: asInt(json['subjectId'] ?? json['classId']),
+      subjectName:
+          json['subjectName'] as String? ??
+          json['className'] as String? ??
+          'Class #${asInt(json['subjectId'] ?? json['classId'])}',
+      teacherId: asInt(json['teacherId']),
       teacherName: json['teacherName'] as String?,
       dayOfWeek: json['dayOfWeek'] as String,
       startTime: parseTime(json['startTime']),

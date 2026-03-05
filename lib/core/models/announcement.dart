@@ -23,16 +23,27 @@ class Announcement {
   });
 
   factory Announcement.fromJson(Map<String, dynamic> json) {
+    int? asInt(dynamic value) => value == null ? null : (value as num).toInt();
+
+    final targetGroupId =
+        asInt(json['classGroupId']) ?? asInt(json['targetStudentGroupId']);
+
     return Announcement(
-      id: json['id'] as int,
+      id: asInt(json['id']) ?? 0,
       title: json['title'] as String,
       content: json['content'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
-      authorId: json['authorId'] as int,
+      authorId: asInt(json['authorId']) ?? 0,
       authorName: json['authorName'] as String?,
-      classGroupId: json['classGroupId'] as int?,
-      classGroupName: json['classGroupName'] as String?,
-      isGlobal: json['isGlobal'] as bool? ?? false,
+      classGroupId: targetGroupId,
+      classGroupName:
+          json['classGroupName'] as String? ??
+          json['targetStudentGroupName'] as String?,
+      isGlobal:
+          json['isGlobal'] as bool? ??
+          (targetGroupId == null &&
+              (json['targetRole'] == null ||
+                  (json['targetRole'] as String).trim().isEmpty)),
     );
   }
 
