@@ -29,8 +29,8 @@ export default function Home() {
         }
       })();
       
-    // } else if (role === "parent") {
-    //   router.replace("/parent");
+    } else if (role === "STUDENT") {
+      router.replace("/parent");
     } else {
       router.replace("/login");
     }

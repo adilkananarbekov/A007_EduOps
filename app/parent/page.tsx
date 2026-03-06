@@ -1,15 +1,59 @@
+"use client";
+
 import Layout from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, TrendingUp, Clock, MapPin } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/navigation";
 
 export default function ParentDashboard() {
-  const studentName = "Alina";
-  const hasDebt = true;
-  const debtAmount = 3200;
-  const attendanceRate = 88;
+
+  const router = useRouter();
+
+  const [studentName, setStudentName] = useState("Alina");
+  const [hasDebt, setHasDebt] = useState(true);
+  const [debtAmount, setDebtAmount] = useState(3200);
+  const [attendanceRate, setAttendanceRate] = useState(88);
+
+  useEffect(() => {
+
+    (async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        // Redirect to login if no token is found
+        router.replace("/login");
+        return;
+      }
+
+      const [scheduleRes, attendanceRes] = await Promise.all([
+        fetch("http://136.116.64.6/api/schedule/week", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("http://136.116.64.6/api/attendance/stats", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ])
+
+      if (scheduleRes.ok && attendanceRes.ok) {
+        const scheduleData = await scheduleRes.json();
+        const attendanceData = await attendanceRes.json();
+
+        if (attendanceData.present + attendanceData.excused + attendanceData.late + attendanceData.absent === 0) {
+          setAttendanceRate(100);
+        } else {
+          const newattendanceRate = Math.round((attendanceData.present + attendanceData.excused + attendanceData.late) / (attendanceData.present + attendanceData.excused + attendanceData.late + attendanceData.absent) * 100);
+          setAttendanceRate(newattendanceRate);
+        }
+        console.log(attendanceData, scheduleData)
+      } else {
+        router.replace("/login");
+      }
+    })();
+
+  }, []);
 
   return (
     <Layout userRole="parent">
