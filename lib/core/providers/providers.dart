@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_client.dart';
 import '../storage/secure_storage_service.dart';
@@ -7,14 +8,17 @@ import '../services/attendance_service.dart';
 import '../services/grade_service.dart';
 import '../services/schedule_service.dart';
 import '../services/announcement_service.dart';
-import '../services/payment_service.dart';
-import '../services/invoice_service.dart';
 import '../models/auth_response.dart';
 import 'auth_notifier.dart';
+import 'theme_mode_notifier.dart';
+
+typedef AdminRouteLeaveGuard = Future<bool> Function(String targetRoute);
 
 // Core infrastructure providers
 final apiClientProvider = Provider<ApiClient>((ref) {
-  return ApiClient();
+  final client = ApiClient();
+  ref.onDispose(client.dispose);
+  return client;
 });
 
 final secureStorageProvider = Provider<SecureStorageService>((ref) {
@@ -49,21 +53,13 @@ final announcementServiceProvider = Provider<AnnouncementService>((ref) {
   return AnnouncementService(apiClient: ref.watch(apiClientProvider));
 });
 
-final paymentServiceProvider = Provider<PaymentService>((ref) {
-  return PaymentService(apiClient: ref.watch(apiClientProvider));
-});
-
-final invoiceServiceProvider = Provider<InvoiceService>((ref) {
-  return InvoiceService(apiClient: ref.watch(apiClientProvider));
-});
-
 // Auth state management
 final authNotifierProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<AuthResponse?>>((ref) {
       final notifier = AuthNotifier(ref.watch(authServiceProvider));
-      ref
-          .read(apiClientProvider)
-          .setUnauthorizedHandler(notifier.handleUnauthorized);
+      final apiClient = ref.read(apiClientProvider);
+      apiClient.setUnauthorizedHandler(notifier.handleUnauthorized);
+      apiClient.setRefreshHandler(notifier.refreshSession);
       return notifier;
     });
 
@@ -71,6 +67,18 @@ final authNotifierProvider =
 final currentUserProvider = Provider<AuthResponse?>((ref) {
   final authState = ref.watch(authNotifierProvider);
   return authState.value;
+});
+
+final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((
+  ref,
+) {
+  return ThemeModeNotifier(ref.watch(secureStorageProvider));
+});
+
+final adminRouteLeaveGuardProvider = StateProvider<AdminRouteLeaveGuard?>((
+  ref,
+) {
+  return null;
 });
 
 // Is authenticated provider

@@ -9,22 +9,22 @@ import '../../pages/admin/student_profile_page.dart';
 import '../../pages/admin/groups_page.dart';
 import '../../pages/admin/schedule_page.dart';
 import '../../pages/admin/week_schedule_page.dart';
+import '../../pages/admin/attendance_overview_page.dart';
 import '../../pages/admin/attendance_marking_page.dart';
-import '../../pages/admin/billing_page.dart';
 import '../../pages/admin/reports_page.dart';
 import '../../pages/admin/settings_page.dart';
 import '../../pages/parent/parent_dashboard_page.dart';
+import '../../pages/parent/parent_records_page.dart';
 import '../../pages/parent/mobile_schedule_page.dart';
-import '../../pages/parent/mobile_billing_page.dart';
 import '../../pages/parent/announcements_page.dart';
 import '../../pages/parent/parent_settings_page.dart';
 import '../../pages/not_found_page.dart';
 import '../../pages/splash_page.dart';
 import '../providers/providers.dart';
-import '../models/user_role.dart';
+import '../security/role_access.dart';
 
-GoRouter appRouter(WidgetRef ref) {
-  return GoRouter(
+final routerProvider = Provider<GoRouter>((ref) {
+  final router = GoRouter(
     initialLocation: '/splash',
     errorBuilder: (context, state) => const NotFoundPage(),
     redirect: (context, state) {
@@ -39,34 +39,28 @@ GoRouter appRouter(WidgetRef ref) {
       final currentUser = authState.value;
       final isAuthenticated = currentUser != null;
 
-      // If not authenticated and trying to access protected route
       if (!isAuthenticated && !isLoginRoute) {
         return '/login';
-      }
-
-      // If authenticated and trying to access splash/login page, redirect by role
-      if (isAuthenticated && (isLoginRoute || isSplashRoute)) {
-        if (currentUser.role == UserRole.STUDENT) {
-          return '/parent';
-        } else {
-          return '/admin';
-        }
       }
 
       if (!isAuthenticated && isSplashRoute) {
         return '/login';
       }
 
-      // Allow navigation
+      if (isAuthenticated && (isLoginRoute || isSplashRoute)) {
+        return RoleAccess.defaultRouteFor(currentUser.role);
+      }
+
+      if (isAuthenticated &&
+          !RoleAccess.canAccessRoute(currentUser.role, state.matchedLocation)) {
+        return RoleAccess.defaultRouteFor(currentUser.role);
+      }
+
       return null;
     },
     routes: [
       GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
-
-      // ─── Login ─────────────────────────────────────────────────────────────
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
-
-      // ─── Admin Shell ────────────────────────────────────────────────────────
       ShellRoute(
         builder: (context, state, child) =>
             AdminLayout(currentRoute: state.matchedLocation, child: child),
@@ -77,7 +71,12 @@ GoRouter appRouter(WidgetRef ref) {
           ),
           GoRoute(
             path: '/admin/students',
-            builder: (context, state) => const StudentsListPage(),
+            builder: (context, state) => StudentsListPage(
+              initialGroupId: int.tryParse(
+                state.uri.queryParameters['groupId'] ?? '',
+              ),
+              initialGroupName: state.uri.queryParameters['groupName'],
+            ),
           ),
           GoRoute(
             path: '/admin/students/:id',
@@ -98,16 +97,24 @@ GoRouter appRouter(WidgetRef ref) {
           ),
           GoRoute(
             path: '/admin/attendance',
-            builder: (context, state) => const AttendanceMarkingPage(),
+            builder: (context, state) => const AttendanceOverviewPage(),
+          ),
+          GoRoute(
+            path: '/admin/attendance/mark',
+            builder: (context, state) => AttendanceMarkingPage(
+              groupId: state.uri.queryParameters['groupId'],
+              initialScheduleId: int.tryParse(
+                state.uri.queryParameters['scheduleId'] ?? '',
+              ),
+              initialDate: DateTime.tryParse(
+                state.uri.queryParameters['date'] ?? '',
+              ),
+            ),
           ),
           GoRoute(
             path: '/admin/attendance/:groupId',
             builder: (context, state) =>
-                AttendanceMarkingPage(groupId: state.pathParameters['groupId']),
-          ),
-          GoRoute(
-            path: '/admin/billing',
-            builder: (context, state) => const BillingPage(),
+                AttendanceOverviewPage(groupId: state.pathParameters['groupId']),
           ),
           GoRoute(
             path: '/admin/reports',
@@ -117,10 +124,12 @@ GoRouter appRouter(WidgetRef ref) {
             path: '/admin/settings',
             builder: (context, state) => const SettingsPage(),
           ),
+          GoRoute(
+            path: '/admin/announcements',
+            builder: (context, state) => const AnnouncementsPage(),
+          ),
         ],
       ),
-
-      // ─── Parent Shell ────────────────────────────────────────────────────────
       ShellRoute(
         builder: (context, state, child) =>
             ParentLayout(currentRoute: state.matchedLocation, child: child),
@@ -134,8 +143,8 @@ GoRouter appRouter(WidgetRef ref) {
             builder: (context, state) => const MobileSchedulePage(),
           ),
           GoRoute(
-            path: '/parent/billing',
-            builder: (context, state) => const MobileBillingPage(),
+            path: '/parent/records',
+            builder: (context, state) => const ParentRecordsPage(),
           ),
           GoRoute(
             path: '/parent/announcements',
@@ -149,4 +158,9 @@ GoRouter appRouter(WidgetRef ref) {
       ),
     ],
   );
-}
+
+  ref.listen(authNotifierProvider, (previous, next) => router.refresh());
+  ref.onDispose(router.dispose);
+
+  return router;
+});
