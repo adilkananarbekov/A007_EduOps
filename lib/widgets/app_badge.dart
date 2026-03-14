@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/theme/app_text_styles.dart';
 import '../core/theme/app_colors.dart';
 import '../core/constants/app_spacing.dart';
 
@@ -33,7 +34,7 @@ class AppBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = _getColors();
+    final colors = _getColors(context);
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
@@ -41,51 +42,74 @@ class AppBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: colors.$1,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(color: colors.$3),
       ),
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
+        style: AppTextStyles.caption.copyWith(
+          fontWeight: FontWeight.w700,
           color: colors.$2,
         ),
       ),
     );
   }
 
-  (Color bg, Color text, Color border) _getColors() {
+  (Color bg, Color text, Color border) _getColors(BuildContext context) {
     switch (variant) {
       case BadgeVariant.active:
-        return (AppColors.greenBg, AppColors.greenText, AppColors.greenBorder);
+        return (
+          AppColors.successBgOf(context),
+          AppColors.successTextOf(context),
+          AppColors.successBorderOf(context),
+        );
       case BadgeVariant.archived:
         return (
-          AppColors.muted,
-          const Color(0xFF4B5563),
-          const Color(0xFFD1D5DB),
+          AppColors.surfaceStrongOf(context),
+          AppColors.textMutedOf(context),
+          AppColors.borderOf(context),
         );
       case BadgeVariant.paid:
-        return (AppColors.greenBg, AppColors.greenText, AppColors.greenBorder);
+        return (
+          AppColors.successBgOf(context),
+          AppColors.successTextOf(context),
+          AppColors.successBorderOf(context),
+        );
       case BadgeVariant.unpaid:
-        return (AppColors.redBg, AppColors.redText, AppColors.redBorder);
+        return (
+          AppColors.dangerBgOf(context),
+          AppColors.dangerTextOf(context),
+          AppColors.dangerBorderOf(context),
+        );
       case BadgeVariant.partial:
         return (
-          AppColors.yellowBg,
-          AppColors.yellowText,
-          AppColors.yellowBorder,
+          AppColors.dangerBgOf(context),
+          AppColors.dangerTextOf(context),
+          AppColors.dangerBorderOf(context),
         );
       case BadgeVariant.present:
-        return (AppColors.greenBg, AppColors.greenText, AppColors.greenBorder);
+        return (
+          AppColors.successBgOf(context),
+          AppColors.successTextOf(context),
+          AppColors.successBorderOf(context),
+        );
       case BadgeVariant.absent:
-        return (AppColors.redBg, AppColors.redText, AppColors.redBorder);
+        return (
+          AppColors.dangerBgOf(context),
+          AppColors.dangerTextOf(context),
+          AppColors.dangerBorderOf(context),
+        );
       case BadgeVariant.important:
-        return (AppColors.redBg, AppColors.primary, AppColors.redBorder);
+        return (
+          AppColors.dangerBgOf(context),
+          AppColors.dangerTextOf(context),
+          AppColors.dangerBorderOf(context),
+        );
       case BadgeVariant.custom:
         return (
-          customBg ?? AppColors.muted,
-          customText ?? AppColors.foreground,
-          customBorder ?? AppColors.border,
+          customBg ?? AppColors.surfaceStrongOf(context),
+          customText ?? AppColors.textPrimaryOf(context),
+          customBorder ?? AppColors.borderOf(context),
         );
     }
   }

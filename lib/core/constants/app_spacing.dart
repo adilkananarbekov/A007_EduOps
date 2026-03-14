@@ -10,11 +10,11 @@ class AppSpacing {
   static const double xxl = 48;
 
   /// Border-radius values
-  static const double radiusSm = 4;
-  static const double radiusMd = 6;
-  static const double radiusLg = 8;
-  static const double radiusXl = 12;
+  static const double radiusSm = 10;
+  static const double radiusMd = 16;
+  static const double radiusLg = 22;
+  static const double radiusXl = 28;
 
   /// Sidebar width (desktop)
-  static const double sidebarWidth = 256;
+  static const double sidebarWidth = 300;
 }
