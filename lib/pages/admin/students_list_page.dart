@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/api/api_exception.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/models/class_group.dart';
 import '../../core/models/student.dart';
+import '../../core/models/user_role.dart';
 import '../../core/providers/providers.dart';
 import '../../widgets/page_header.dart';
 
 class StudentsListPage extends ConsumerStatefulWidget {
-  const StudentsListPage({super.key});
+  final int? initialGroupId;
+  final String? initialGroupName;
+
+  const StudentsListPage({
+    super.key,
+    this.initialGroupId,
+    this.initialGroupName,
+  });
 
   @override
   ConsumerState<StudentsListPage> createState() => _StudentsListPageState();
@@ -19,29 +28,86 @@ class StudentsListPage extends ConsumerStatefulWidget {
 class _StudentsListPageState extends ConsumerState<StudentsListPage> {
   final _searchController = TextEditingController();
   List<Student> _students = [];
+  List<ClassGroup> _groups = [];
+  int? _selectedGroupId;
+  bool _limitedToTeachingGroups = false;
   bool _isLoading = true;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _selectedGroupId = widget.initialGroupId;
     _loadStudents();
+  }
+
+  @override
+  void didUpdateWidget(covariant StudentsListPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialGroupId != oldWidget.initialGroupId ||
+        widget.initialGroupName != oldWidget.initialGroupName) {
+      _selectedGroupId = widget.initialGroupId;
+      _loadStudents();
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadStudents() async {
     setState(() => _isLoading = true);
+    final adminService = ref.read(adminServiceProvider);
+    final currentUser = ref.read(currentUserProvider);
+
     try {
-      final adminService = ref.read(adminServiceProvider);
-      final students = await adminService.getStudents();
+      if (currentUser?.role == UserRole.TEACHER) {
+        final teacherResult = await _loadTeacherScopedStudents();
+        if (!mounted) return;
+        setState(() {
+          _students = teacherResult.students;
+          _groups = teacherResult.groups;
+          _selectedGroupId = teacherResult.selectedGroupId;
+          _limitedToTeachingGroups = true;
+          _isLoading = false;
+          _errorMessage = null;
+        });
+        return;
+      }
+
+      List<ClassGroup> groups = _groups;
+      try {
+        groups = await adminService.getClassGroups();
+      } catch (e) {
+        debugPrint('[STUDENTS] getClassGroups error: $e');
+      }
+
+      debugPrint(
+        '[STUDENTS] load start role=${currentUser?.role.name} group=$_selectedGroupId',
+      );
+      final result = await adminService.getAccessibleStudents(
+        classGroupId: _selectedGroupId,
+      );
+
+      if (!mounted) return;
       setState(() {
-        _students = students;
+        _students = result.students;
+        _groups = groups;
+        _limitedToTeachingGroups = false;
         _isLoading = false;
         _errorMessage = null;
       });
     } catch (e) {
+      debugPrint(
+        '[STUDENTS] load failed role=${currentUser?.role.name} group=$_selectedGroupId error=$e',
+      );
+      final message = _friendlyLoadError(e);
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Failed to load students: ${e.toString()}';
+        _errorMessage = message;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -51,9 +117,100 @@ class _StudentsListPageState extends ConsumerState<StudentsListPage> {
     }
   }
 
+  Future<_TeacherScopedStudentsResult> _loadTeacherScopedStudents() async {
+    final adminService = ref.read(adminServiceProvider);
+    final scheduleService = ref.read(scheduleServiceProvider);
+    final schedules = await scheduleService.getWeeklySchedule();
+
+    final groupsById = <int, ClassGroup>{};
+    for (final schedule in schedules) {
+      groupsById[schedule.classGroupId] = ClassGroup(
+        id: schedule.classGroupId,
+        name: schedule.classGroupName ?? 'Group #${schedule.classGroupId}',
+      );
+    }
+
+    final groups = groupsById.values.toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+    if (groups.isEmpty) {
+      return const _TeacherScopedStudentsResult(
+        groups: <ClassGroup>[],
+        students: <Student>[],
+      );
+    }
+
+    int? selectedGroupId = _selectedGroupId;
+    if (selectedGroupId != null && !groupsById.containsKey(selectedGroupId)) {
+      selectedGroupId = null;
+    }
+
+    if (selectedGroupId != null) {
+      final students = await adminService.getStudentsByClass(selectedGroupId);
+      return _TeacherScopedStudentsResult(
+        groups: groups,
+        students: students,
+        selectedGroupId: selectedGroupId,
+      );
+    }
+
+    final groupStudents = await Future.wait(
+      groups.map(
+        (group) => adminService
+            .getStudentsByClass(group.id)
+            .catchError((_) => <Student>[]),
+      ),
+    );
+
+    final studentsById = <int, Student>{};
+    for (final students in groupStudents) {
+      for (final student in students) {
+        studentsById[student.id] = student;
+      }
+    }
+
+    final students = studentsById.values.toList()
+      ..sort(
+        (a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()),
+      );
+
+    return _TeacherScopedStudentsResult(groups: groups, students: students);
+  }
+
+  String _friendlyLoadError(Object error) {
+    if (error is UnauthorizedException) {
+      return 'Your session expired. Please sign in again.';
+    }
+    if (error is ForbiddenException) {
+      return error.message;
+    }
+    if (error is NetworkException) {
+      return 'Unable to reach the server. Check the backend connection.';
+    }
+    if (error is ApiTimeoutException) {
+      return 'Student loading timed out. Please try again.';
+    }
+    if (error is ParseException) {
+      return 'Students were returned in an unexpected format.';
+    }
+    if (error is ServerException) {
+      return 'The server returned an error while loading students.';
+    }
+    return 'Failed to load students: ${error.toString()}';
+  }
+
+  void _handleGroupFilterChanged(int? groupId) {
+    if (_selectedGroupId == groupId) return;
+    setState(() => _selectedGroupId = groupId);
+    _loadStudents();
+  }
+
+  void _handleStudentTap(Student student) {
+    context.push('/admin/students/${student.id}');
+  }
+
   List<Student> get _filtered {
     var list = _students;
-    // Note: Backend doesn't have "active" field, so we show all students
     final q = _searchController.text.toLowerCase();
     if (q.isNotEmpty) {
       list = list
@@ -65,6 +222,68 @@ class _StudentsListPageState extends ConsumerState<StudentsListPage> {
           .toList();
     }
     return list;
+  }
+
+  String? get _selectedGroupName {
+    for (final group in _groups) {
+      if (group.id == _selectedGroupId) {
+        return group.name;
+      }
+    }
+    if (_selectedGroupId == widget.initialGroupId) {
+      return widget.initialGroupName;
+    }
+    return null;
+  }
+
+  String get _subtitle {
+    final selectedGroupName = _selectedGroupName;
+    if (selectedGroupName != null) {
+      return '${_students.length} students in $selectedGroupName';
+    }
+    if (_limitedToTeachingGroups) {
+      return '${_students.length} students across your teaching groups';
+    }
+    return '${_students.length} total students';
+  }
+
+  String get _emptyStateMessage {
+    if (_searchController.text.isNotEmpty) {
+      return 'No students match your search';
+    }
+    final selectedGroupName = _selectedGroupName;
+    if (selectedGroupName != null) {
+      return 'No students found in $selectedGroupName';
+    }
+    if (_limitedToTeachingGroups) {
+      return 'No students found in your teaching groups';
+    }
+    return 'No students found';
+  }
+
+  List<DropdownMenuItem<int?>> get _groupFilterItems {
+    final items = <DropdownMenuItem<int?>>[
+      const DropdownMenuItem<int?>(value: null, child: Text('All groups')),
+    ];
+
+    final knownGroupIds = <int>{};
+    for (final group in _groups) {
+      knownGroupIds.add(group.id);
+      items.add(
+        DropdownMenuItem<int?>(value: group.id, child: Text(group.name)),
+      );
+    }
+
+    if (_selectedGroupId != null && !knownGroupIds.contains(_selectedGroupId)) {
+      items.add(
+        DropdownMenuItem<int?>(
+          value: _selectedGroupId,
+          child: Text(_selectedGroupName ?? 'Group #$_selectedGroupId'),
+        ),
+      );
+    }
+
+    return items;
   }
 
   void _handleAddStudent() {
@@ -195,18 +414,32 @@ class _StudentsListPageState extends ConsumerState<StudentsListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = ref.watch(currentUserProvider);
+    final canManageStudents = currentUser?.role == UserRole.ADMIN;
+    final textMuted = AppColors.textMutedOf(context);
+    final textPrimary = AppColors.textPrimaryOf(context);
+    final surface = AppColors.surfaceOf(context);
+    final actions = <Widget>[
+      if (_selectedGroupId != null)
+        OutlinedButton.icon(
+          onPressed: _isLoading ? null : () => _handleGroupFilterChanged(null),
+          icon: const Icon(Icons.filter_alt_off_outlined, size: 16),
+          label: const Text('All Students'),
+        ),
+      if (canManageStudents)
+        ElevatedButton.icon(
+          onPressed: _handleAddStudent,
+          icon: const Icon(Icons.add, size: 16),
+          label: const Text('Add Student'),
+        ),
+    ];
+
     return Column(
       children: [
         PageHeader(
           title: 'Students',
-          subtitle: '${_students.length} total students',
-          actions: [
-            ElevatedButton.icon(
-              onPressed: _handleAddStudent,
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add Student'),
-            ),
-          ],
+          subtitle: _subtitle,
+          actions: actions.isEmpty ? null : actions,
         ),
         // Search + Filter
         Container(
@@ -214,31 +447,89 @@ class _StudentsListPageState extends ConsumerState<StudentsListPage> {
           decoration: const BoxDecoration(
             border: Border(bottom: BorderSide(color: AppColors.border)),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    hintText: 'Search students…',
-                    prefixIcon: Icon(
-                      Icons.search,
-                      size: 18,
-                      color: AppColors.mutedForeground,
-                    ),
-                    isDense: true,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final searchField = TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Search students…',
+                  prefixIcon: Icon(
+                    Icons.search,
+                    size: 18,
+                    color: textMuted,
                   ),
+                  isDense: true,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              if (_isLoading)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+              );
+
+              final groupFilter = DropdownButtonFormField<int?>(
+                key: ValueKey<int?>(_selectedGroupId),
+                initialValue: _selectedGroupId,
+                style: AppTextStyles.bodyMedium.copyWith(color: textPrimary),
+                dropdownColor: surface,
+                iconEnabledColor: textMuted,
+                decoration: const InputDecoration(
+                  labelText: 'Group',
+                  isDense: true,
                 ),
-            ],
+                items: _groupFilterItems,
+                onChanged: _isLoading ? null : _handleGroupFilterChanged,
+              );
+
+              final loader = _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const SizedBox.shrink();
+
+              if (constraints.maxWidth < 420) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    searchField,
+                    const SizedBox(height: AppSpacing.sm),
+                    groupFilter,
+                    if (_limitedToTeachingGroups) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      const _StudentsScopeNotice(
+                        message:
+                            'This teacher account is limited to groups from the current teaching schedule.',
+                      ),
+                    ],
+                    if (_isLoading) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      loader,
+                    ],
+                  ],
+                );
+              }
+
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: searchField),
+                      const SizedBox(width: AppSpacing.sm),
+                      SizedBox(width: 220, child: groupFilter),
+                      if (_isLoading) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        loader,
+                      ],
+                    ],
+                  ),
+                  if (_limitedToTeachingGroups) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    const _StudentsScopeNotice(
+                      message:
+                          'This teacher account only shows students from groups on the current teaching schedule.',
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
         ),
         Expanded(
@@ -247,16 +538,22 @@ class _StudentsListPageState extends ConsumerState<StudentsListPage> {
               : _filtered.isEmpty
               ? Center(
                   child: Text(
-                    'No students found',
+                    _emptyStateMessage,
                     style: AppTextStyles.bodyMedium,
                   ),
                 )
               : LayoutBuilder(
                   builder: (ctx, constraints) {
                     if (constraints.maxWidth > 700) {
-                      return _DesktopStudentTable(students: _filtered);
+                      return _DesktopStudentTable(
+                        students: _filtered,
+                        onViewStudent: _handleStudentTap,
+                      );
                     }
-                    return _MobileStudentList(students: _filtered);
+                    return _MobileStudentList(
+                      students: _filtered,
+                      onViewStudent: _handleStudentTap,
+                    );
                   },
                 ),
         ),
@@ -267,16 +564,26 @@ class _StudentsListPageState extends ConsumerState<StudentsListPage> {
 
 class _DesktopStudentTable extends StatelessWidget {
   final List<Student> students;
-  const _DesktopStudentTable({required this.students});
+  final ValueChanged<Student> onViewStudent;
+
+  const _DesktopStudentTable({
+    required this.students,
+    required this.onViewStudent,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final border = AppColors.borderOf(context);
+    final surfaceStrong = AppColors.surfaceStrongOf(context);
+    final textMuted = AppColors.textMutedOf(context);
+    final textPrimary = AppColors.textPrimaryOf(context);
+
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Container(
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: border),
             borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           ),
           child: Column(
@@ -287,8 +594,8 @@ class _DesktopStudentTable extends StatelessWidget {
                   horizontal: AppSpacing.md,
                   vertical: AppSpacing.sm,
                 ),
-                decoration: const BoxDecoration(
-                  color: AppColors.muted,
+                decoration: BoxDecoration(
+                  color: surfaceStrong,
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(AppSpacing.radiusLg),
                     topRight: Radius.circular(AppSpacing.radiusLg),
@@ -298,21 +605,30 @@ class _DesktopStudentTable extends StatelessWidget {
                   children: [
                     Expanded(
                       flex: 3,
-                      child: Text('Name', style: AppTextStyles.label),
+                      child: Text(
+                        'Name',
+                        style: AppTextStyles.label.copyWith(color: textMuted),
+                      ),
                     ),
                     Expanded(
                       flex: 2,
-                      child: Text('Group', style: AppTextStyles.label),
+                      child: Text(
+                        'Group',
+                        style: AppTextStyles.label.copyWith(color: textMuted),
+                      ),
                     ),
                     Expanded(
                       flex: 2,
-                      child: Text('Phone', style: AppTextStyles.label),
+                      child: Text(
+                        'Phone',
+                        style: AppTextStyles.label.copyWith(color: textMuted),
+                      ),
                     ),
                     const SizedBox(width: 60),
                   ],
                 ),
               ),
-              const Divider(height: 1, color: AppColors.border),
+              Divider(height: 1, color: border),
               ...students.asMap().entries.map((e) {
                 final s = e.value;
                 return Column(
@@ -330,10 +646,11 @@ class _DesktopStudentTable extends StatelessWidget {
                               children: [
                                 CircleAvatar(
                                   radius: 16,
-                                  backgroundColor: AppColors.muted,
+                                  backgroundColor: surfaceStrong,
                                   child: Text(
                                     s.firstName[0].toUpperCase(),
                                     style: AppTextStyles.bodySmall.copyWith(
+                                      color: textPrimary,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -343,8 +660,11 @@ class _DesktopStudentTable extends StatelessWidget {
                                   child: Text(
                                     s.fullName,
                                     style: AppTextStyles.bodyMedium.copyWith(
+                                      color: textPrimary,
                                       fontWeight: FontWeight.w500,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
@@ -354,21 +674,28 @@ class _DesktopStudentTable extends StatelessWidget {
                             flex: 2,
                             child: Text(
                               s.classGroupName ?? 'No Group',
-                              style: AppTextStyles.bodyMedium,
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: textPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           Expanded(
                             flex: 2,
                             child: Text(
                               s.phoneNumber ?? 'N/A',
-                              style: AppTextStyles.bodySmall,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: textMuted,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           SizedBox(
                             width: 60,
                             child: TextButton(
-                              onPressed: () =>
-                                  context.go('/admin/students/${s.id}'),
+                              onPressed: () => onViewStudent(s),
                               child: const Text('View'),
                             ),
                           ),
@@ -376,7 +703,7 @@ class _DesktopStudentTable extends StatelessWidget {
                       ),
                     ),
                     if (e.key < students.length - 1)
-                      const Divider(height: 1, color: AppColors.border),
+                      Divider(height: 1, color: border),
                   ],
                 );
               }),
@@ -390,30 +717,44 @@ class _DesktopStudentTable extends StatelessWidget {
 
 class _MobileStudentList extends StatelessWidget {
   final List<Student> students;
-  const _MobileStudentList({required this.students});
+  final ValueChanged<Student> onViewStudent;
+
+  const _MobileStudentList({
+    required this.students,
+    required this.onViewStudent,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final border = AppColors.borderOf(context);
+    final surface = AppColors.surfaceOf(context);
+    final surfaceStrong = AppColors.surfaceStrongOf(context);
+    final textMuted = AppColors.textMutedOf(context);
+    final textPrimary = AppColors.textPrimaryOf(context);
+
     return ListView.separated(
       padding: const EdgeInsets.all(AppSpacing.md),
       itemCount: students.length,
-      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-      itemBuilder: (_, i) {
+      separatorBuilder: (context, index) =>
+          const SizedBox(height: AppSpacing.sm),
+      itemBuilder: (context, i) {
         final s = students[i];
         return Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.border),
+            color: surface,
+            border: Border.all(color: border),
             borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           ),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: AppColors.muted,
+                backgroundColor: surfaceStrong,
                 child: Text(
                   s.firstName[0].toUpperCase(),
                   style: AppTextStyles.bodyLarge.copyWith(
+                    color: textPrimary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -426,22 +767,29 @@ class _MobileStudentList extends StatelessWidget {
                     Text(
                       s.fullName,
                       style: AppTextStyles.bodyMedium.copyWith(
+                        color: textPrimary,
                         fontWeight: FontWeight.w500,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       s.classGroupName ?? 'No Group',
-                      style: AppTextStyles.bodySmall,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: textMuted,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
               IconButton(
-                onPressed: () => context.go('/admin/students/${s.id}'),
+                onPressed: () => onViewStudent(s),
                 icon: const Icon(
                   Icons.arrow_forward_ios,
                   size: 14,
-                  color: AppColors.mutedForeground,
+                  color: null,
                 ),
               ),
             ],
@@ -450,4 +798,61 @@ class _MobileStudentList extends StatelessWidget {
       },
     );
   }
+}
+
+class _StudentsScopeNotice extends StatelessWidget {
+  final String message;
+
+  const _StudentsScopeNotice({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaceStrong = AppColors.surfaceStrongOf(context);
+    final border = AppColors.borderOf(context);
+    final textMuted = AppColors.textMutedOf(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: surfaceStrong,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(
+              Icons.info_outline,
+              size: 16,
+              color: textMuted,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: textMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TeacherScopedStudentsResult {
+  final List<ClassGroup> groups;
+  final List<Student> students;
+  final int? selectedGroupId;
+
+  const _TeacherScopedStudentsResult({
+    required this.groups,
+    required this.students,
+    this.selectedGroupId,
+  });
 }

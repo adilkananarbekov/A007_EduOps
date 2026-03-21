@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,10 +8,9 @@ import '../../core/constants/app_spacing.dart';
 import '../../core/models/student.dart';
 import '../../core/models/attendance.dart';
 import '../../core/models/grade.dart';
-import '../../core/models/invoice.dart';
 import '../../core/models/schedule.dart';
+import '../../core/models/user_role.dart';
 import '../../core/providers/providers.dart';
-import '../../widgets/app_badge.dart';
 import '../../widgets/app_card.dart';
 
 class StudentProfilePage extends ConsumerStatefulWidget {
@@ -25,18 +23,26 @@ class StudentProfilePage extends ConsumerStatefulWidget {
 
 class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
   bool _isLoading = true;
+  bool _isTeacherScopedView = false;
   String? _errorMessage;
 
   Student? _student;
   List<Attendance> _attendance = [];
   List<Grade> _grades = [];
-  List<Invoice> _invoices = [];
   List<Schedule> _schedules = [];
 
   @override
   void initState() {
     super.initState();
     _loadStudentData();
+  }
+
+  void _handleBackNavigation() {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go('/admin/students');
   }
 
   Future<void> _loadStudentData() async {
@@ -56,16 +62,49 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
 
     try {
       final adminService = ref.read(adminServiceProvider);
-      final students = await adminService.getStudents();
-      final matched = students.where((s) => s.id == studentIdInt);
-      if (matched.isEmpty) {
+      final currentUser = ref.read(currentUserProvider);
+      final matchedStudent = await adminService.getAccessibleStudentById(
+        studentIdInt,
+      );
+      if (matchedStudent == null) {
         setState(() {
           _isLoading = false;
           _errorMessage = 'Student not found';
         });
         return;
       }
-      _student = matched.first;
+
+      Set<int> accessibleScheduleIds = const <int>{};
+      Set<int> accessibleSubjectIds = const <int>{};
+      if (currentUser?.role == UserRole.TEACHER) {
+        final teacherSchedules = await ref
+            .read(scheduleServiceProvider)
+            .getWeeklySchedule();
+        final teacherSchedulesForStudent = teacherSchedules
+            .where(
+              (schedule) =>
+                  schedule.classGroupId == matchedStudent.classGroupId,
+            )
+            .toList();
+        if (matchedStudent.classGroupId == null ||
+            teacherSchedulesForStudent.isEmpty) {
+          if (!mounted) return;
+          setState(() {
+            _isLoading = false;
+            _errorMessage =
+                'This teacher account does not have access to that student.';
+          });
+          return;
+        }
+        accessibleScheduleIds = teacherSchedulesForStudent
+            .map((schedule) => schedule.id)
+            .toSet();
+        accessibleSubjectIds = teacherSchedulesForStudent
+            .map((schedule) => schedule.subjectId)
+            .toSet();
+      }
+
+      _student = matchedStudent;
 
       // Load related data in parallel, each can fail independently
       final results = await Future.wait([
@@ -83,13 +122,6 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
               debugPrint('[PROFILE] grades error: $e');
               return <Grade>[];
             }),
-        ref
-            .read(invoiceServiceProvider)
-            .getStudentInvoices(studentIdInt)
-            .catchError((e) {
-              debugPrint('[PROFILE] invoices error: $e');
-              return <Invoice>[];
-            }),
         _student!.classGroupId != null
             ? ref
                   .read(scheduleServiceProvider)
@@ -101,12 +133,34 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
             : Future.value(<Schedule>[]),
       ]);
 
+      var attendance = results[0] as List<Attendance>;
+      var grades = results[1] as List<Grade>;
+      var schedules = results[2] as List<Schedule>;
+
+      if (currentUser?.role == UserRole.TEACHER) {
+        attendance = attendance
+            .where(
+              (record) => accessibleScheduleIds.contains(record.scheduleId),
+            )
+            .toList();
+        grades = grades.where((grade) {
+          if (!accessibleSubjectIds.contains(grade.subjectId)) {
+            return false;
+          }
+          return grade.teacherId == null ||
+              grade.teacherId == currentUser!.userId;
+        }).toList();
+        schedules = schedules
+            .where((schedule) => accessibleScheduleIds.contains(schedule.id))
+            .toList();
+      }
+
       if (!mounted) return;
       setState(() {
-        _attendance = results[0] as List<Attendance>;
-        _grades = results[1] as List<Grade>;
-        _invoices = results[2] as List<Invoice>;
-        _schedules = results[3] as List<Schedule>;
+        _attendance = attendance;
+        _grades = grades;
+        _schedules = schedules;
+        _isTeacherScopedView = currentUser?.role == UserRole.TEACHER;
         _isLoading = false;
       });
     } catch (e) {
@@ -127,15 +181,6 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
     return '${((present / _attendance.length) * 100).round()}%';
   }
 
-  double get _outstandingFees {
-    return _invoices.fold(0.0, (sum, inv) => sum + inv.amountOutstanding);
-  }
-
-  double get _monthlyFee {
-    if (_invoices.isNotEmpty) return _invoices.first.amountDue;
-    return 0;
-  }
-
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -148,22 +193,66 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
             decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: AppColors.border)),
             ),
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: () => context.go('/admin/students'),
-                  icon: const Icon(Icons.arrow_back_ios, size: 18),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text('Student Profile', style: AppTextStyles.heading3),
-                const Spacer(),
-                if (!_isLoading && _student != null)
-                  IconButton(
-                    onPressed: _loadStudentData,
-                    icon: const Icon(Icons.refresh, size: 20),
-                    tooltip: 'Refresh',
-                  ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final trailingAction = !_isLoading && _student != null
+                    ? IconButton(
+                        onPressed: _loadStudentData,
+                        icon: const Icon(Icons.refresh, size: 20),
+                        tooltip: 'Refresh',
+                      )
+                    : null;
+
+                if (constraints.maxWidth < 520) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: _handleBackNavigation,
+                            icon: const Icon(Icons.arrow_back_ios, size: 18),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              'Student Profile',
+                              style: AppTextStyles.heading3,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (trailingAction != null)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: trailingAction,
+                        ),
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    IconButton(
+                      onPressed: _handleBackNavigation,
+                      icon: const Icon(Icons.arrow_back_ios, size: 18),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        'Student Profile',
+                        style: AppTextStyles.heading3,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // ignore: use_null_aware_elements
+                    if (trailingAction != null) trailingAction,
+                  ],
+                );
+              },
             ),
           ),
           Expanded(
@@ -198,6 +287,13 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
 
   Widget _buildContent() {
     final student = _student!;
+    final tabContentHeight = MediaQuery.sizeOf(context).height < 820
+        ? 420.0
+        : 520.0;
+    final visibleSubjectCount = _schedules
+        .map((schedule) => schedule.subjectId)
+        .toSet()
+        .length;
     final initials = student.name.isNotEmpty
         ? student.name
               .split(' ')
@@ -214,10 +310,59 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
         children: [
           // Profile Card
           AppCard(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final details = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      student.fullName,
+                      style: AppTextStyles.heading3,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      '${student.classGroupName ?? 'No Group'} · ID: #${student.id}',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.mutedForeground,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (_isTeacherScopedView) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Showing only lessons and grades from your schedule.',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.md),
+                    Wrap(
+                      spacing: AppSpacing.xl,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        _InfoItem(Icons.email_outlined, student.email),
+                        if (student.phoneNumber != null)
+                          _InfoItem(Icons.phone_outlined, student.phoneNumber!),
+                        if (student.studentNumber != null)
+                          _InfoItem(
+                            Icons.badge_outlined,
+                            student.studentNumber!,
+                          ),
+                        if (student.accountNumber != null)
+                          _InfoItem(
+                            Icons.account_balance_outlined,
+                            'Acc: ${student.accountNumber}',
+                          ),
+                      ],
+                    ),
+                  ],
+                );
+
+                final avatar = CircleAvatar(
                   radius: 40,
                   backgroundColor: AppColors.muted,
                   child: Text(
@@ -226,47 +371,28 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
                       color: AppColors.foreground,
                     ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.lg),
-                Expanded(
-                  child: Column(
+                );
+
+                if (constraints.maxWidth < 720) {
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(student.fullName, style: AppTextStyles.heading3),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        '${student.classGroupName ?? 'No Group'} · ID: #${student.id}',
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.mutedForeground,
-                        ),
-                      ),
+                      avatar,
                       const SizedBox(height: AppSpacing.md),
-                      Wrap(
-                        spacing: AppSpacing.xl,
-                        runSpacing: AppSpacing.sm,
-                        children: [
-                          _InfoItem(Icons.email_outlined, student.email),
-                          if (student.phoneNumber != null)
-                            _InfoItem(
-                              Icons.phone_outlined,
-                              student.phoneNumber!,
-                            ),
-                          if (student.studentNumber != null)
-                            _InfoItem(
-                              Icons.badge_outlined,
-                              student.studentNumber!,
-                            ),
-                          if (student.accountNumber != null)
-                            _InfoItem(
-                              Icons.account_balance_outlined,
-                              'Acc: ${student.accountNumber}',
-                            ),
-                        ],
-                      ),
+                      details,
                     ],
-                  ),
-                ),
-              ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    avatar,
+                    const SizedBox(width: AppSpacing.lg),
+                    Expanded(child: details),
+                  ],
+                );
+              },
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -275,6 +401,26 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
           LayoutBuilder(
             builder: (ctx, constraints) {
               final cols = constraints.maxWidth > 600 ? 3 : 1;
+              final statCards = <Widget>[
+                _StatCard(
+                  'Attendance Rate',
+                  _attendanceRate,
+                  _attendanceRate == '—'
+                      ? AppColors.mutedForeground
+                      : AppColors.greenText,
+                ),
+                _StatCard(
+                  _isTeacherScopedView ? 'Visible Subjects' : 'Subjects',
+                  visibleSubjectCount.toString(),
+                  AppColors.foreground,
+                ),
+                _StatCard(
+                  _isTeacherScopedView ? 'Visible Lessons' : 'Weekly Lessons',
+                  _schedules.length.toString(),
+                  AppColors.accent,
+                ),
+              ];
+
               return GridView.count(
                 crossAxisCount: cols,
                 shrinkWrap: true,
@@ -282,37 +428,7 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
                 crossAxisSpacing: AppSpacing.md,
                 mainAxisSpacing: AppSpacing.md,
                 childAspectRatio: 2.5,
-                children: [
-                  _StatCard(
-                    'Attendance Rate',
-                    _attendanceRate,
-                    _attendanceRate == '—'
-                        ? AppColors.mutedForeground
-                        : AppColors.greenText,
-                  ),
-                  _StatCard(
-                    'Monthly Fee',
-                    _monthlyFee > 0
-                        ? NumberFormat.currency(
-                            symbol: '₸ ',
-                            decimalDigits: 0,
-                          ).format(_monthlyFee)
-                        : '—',
-                    AppColors.foreground,
-                  ),
-                  _StatCard(
-                    'Outstanding',
-                    _outstandingFees > 0
-                        ? NumberFormat.currency(
-                            symbol: '₸ ',
-                            decimalDigits: 0,
-                          ).format(_outstandingFees)
-                        : '₸ 0',
-                    _outstandingFees > 0
-                        ? AppColors.primary
-                        : AppColors.greenText,
-                  ),
-                ],
+                children: statCards,
               );
             },
           ),
@@ -323,22 +439,23 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
             decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: AppColors.border)),
             ),
-            child: const TabBar(
-              tabs: [
+            child: TabBar(
+              isScrollable: true,
+              tabs: const [
+                Tab(text: 'Attendance'),
                 Tab(text: 'Schedule'),
                 Tab(text: 'Grades'),
-                Tab(text: 'Billing'),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.md),
           SizedBox(
-            height: 350,
+            height: tabContentHeight,
             child: TabBarView(
               children: [
+                _AttendanceTab(attendance: _attendance),
                 _ScheduleTab(schedules: _schedules),
                 _GradesTab(grades: _grades),
-                _BillingTab(invoices: _invoices),
               ],
             ),
           ),
@@ -357,13 +474,23 @@ class _InfoItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: AppColors.mutedForeground),
-        const SizedBox(width: AppSpacing.xs),
-        Text(text, style: AppTextStyles.bodySmall),
-      ],
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 260),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppColors.mutedForeground),
+          const SizedBox(width: AppSpacing.xs),
+          Flexible(
+            child: Text(
+              text,
+              style: AppTextStyles.bodySmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -390,6 +517,8 @@ class _StatCard extends StatelessWidget {
           Text(
             value,
             style: AppTextStyles.heading4.copyWith(color: valueColor),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -466,62 +595,220 @@ class _ScheduleTab extends StatelessWidget {
             ...entry.value.map(
               (s) => Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.border),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: AppSpacing.xs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.muted,
-                          borderRadius: BorderRadius.circular(
-                            AppSpacing.radiusMd,
-                          ),
-                        ),
-                        child: Text(
-                          '${s.startTime} – ${s.endTime}',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final timeChip = Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.muted,
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.radiusMd,
                         ),
                       ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              s.subjectName,
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
+                      child: Text(
+                        '${s.startTime} – ${s.endTime}',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+
+                    final details = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          s.subjectName,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (s.teacherName != null || s.room != null)
+                          Text(
+                            [
+                              s.teacherName,
+                              s.room,
+                            ].whereType<String>().join(' · '),
+                            style: AppTextStyles.caption,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    );
+
+                    return Container(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.radiusLg,
+                        ),
+                      ),
+                      child: constraints.maxWidth < 460
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                timeChip,
+                                const SizedBox(height: AppSpacing.sm),
+                                details,
+                              ],
+                            )
+                          : Row(
+                              children: [
+                                timeChip,
+                                const SizedBox(width: AppSpacing.md),
+                                Expanded(child: details),
+                              ],
                             ),
-                            if (s.teacherName != null || s.room != null)
-                              Text(
-                                [
-                                  s.teacherName,
-                                  s.room,
-                                ].whereType<String>().join(' · '),
-                                style: AppTextStyles.caption,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
             ),
           ],
         );
       }).toList(),
+    );
+  }
+}
+
+class _AttendanceTab extends StatelessWidget {
+  final List<Attendance> attendance;
+
+  const _AttendanceTab({required this.attendance});
+
+  Color _statusColor(AttendanceStatus status) {
+    switch (status) {
+      case AttendanceStatus.PRESENT:
+        return AppColors.greenText;
+      case AttendanceStatus.ABSENT:
+        return AppColors.primary;
+      case AttendanceStatus.LATE:
+        return Colors.orange;
+      case AttendanceStatus.EXCUSED:
+        return AppColors.accent;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (attendance.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.fact_check_outlined,
+              size: 48,
+              color: AppColors.mutedForeground,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'No attendance records yet',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.mutedForeground,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final sorted = List<Attendance>.from(attendance)
+      ..sort((a, b) => b.date.compareTo(a.date));
+
+    return ListView.separated(
+      itemCount: sorted.length,
+      separatorBuilder: (context, index) =>
+          const SizedBox(height: AppSpacing.sm),
+      itemBuilder: (context, index) {
+        final record = sorted[index];
+        final statusColor = _statusColor(record.status);
+
+        return Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final statusPill = Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                ),
+                child: Text(
+                  record.status.displayName,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: statusColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              );
+
+              final details = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    record.subjectName ?? 'Attendance',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    DateFormat('MMM d, yyyy').format(record.date),
+                    style: AppTextStyles.caption,
+                  ),
+                  if (record.notes != null && record.notes!.trim().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: Text(
+                        record.notes!,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.mutedForeground,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+              );
+
+              if (constraints.maxWidth < 440) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    statusPill,
+                    const SizedBox(height: AppSpacing.sm),
+                    details,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  statusPill,
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(child: details),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
@@ -561,8 +848,9 @@ class _GradesTab extends StatelessWidget {
 
     return ListView.separated(
       itemCount: sorted.length,
-      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-      itemBuilder: (_, i) {
+      separatorBuilder: (context, index) =>
+          const SizedBox(height: AppSpacing.sm),
+      itemBuilder: (context, i) {
         final g = sorted[i];
         final pct = g.percentage;
         final color = pct >= 80
@@ -577,9 +865,9 @@ class _GradesTab extends StatelessWidget {
             border: Border.all(color: AppColors.border),
             borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           ),
-          child: Row(
-            children: [
-              Container(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final gradeBadge = Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
@@ -591,126 +879,69 @@ class _GradesTab extends StatelessWidget {
                   g.letterGrade,
                   style: AppTextStyles.heading4.copyWith(color: color),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              );
+
+              final gradeDetails = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    g.subjectName,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${g.score.toStringAsFixed(0)}/${g.maxScore.toStringAsFixed(0)} · ${g.gradeType ?? 'Grade'}',
+                    style: AppTextStyles.caption,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (g.teacherName != null)
                     Text(
-                      g.subjectName,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w500,
+                      g.teacherName!,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.mutedForeground,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    Text(
-                      '${g.score.toStringAsFixed(0)}/${g.maxScore.toStringAsFixed(0)} · ${g.gradeType ?? 'Grade'}',
-                      style: AppTextStyles.caption,
-                    ),
-                  ],
-                ),
-              ),
-              Text(
+                ],
+              );
+
+              final dateLabel = Text(
                 DateFormat('MMM d').format(g.date),
                 style: AppTextStyles.caption,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
+              );
 
-// ─── Billing Tab ────────────────────────────────────────────────────────────
-
-class _BillingTab extends StatelessWidget {
-  final List<Invoice> invoices;
-  const _BillingTab({required this.invoices});
-
-  @override
-  Widget build(BuildContext context) {
-    if (invoices.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.receipt_long_outlined,
-              size: 48,
-              color: AppColors.mutedForeground,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'No invoices yet',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.mutedForeground,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final sorted = List<Invoice>.from(invoices)
-      ..sort((a, b) => b.dueDate.compareTo(a.dueDate));
-
-    return ListView.separated(
-      itemCount: sorted.length,
-      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-      itemBuilder: (_, i) {
-        final inv = sorted[i];
-        final period = DateFormat(
-          'MMM yyyy',
-        ).format(DateTime(inv.year, inv.month));
-        final badgeVariant = switch (inv.status) {
-          InvoiceStatus.PAID => BadgeVariant.paid,
-          InvoiceStatus.PARTIALLY_PAID => BadgeVariant.partial,
-          _ => BadgeVariant.unpaid,
-        };
-        final statusLabel = switch (inv.status) {
-          InvoiceStatus.PAID => 'Paid',
-          InvoiceStatus.PARTIALLY_PAID => 'Partial',
-          InvoiceStatus.OVERDUE => 'Overdue',
-          InvoiceStatus.CANCELLED => 'Cancelled',
-          InvoiceStatus.UNPAID => 'Unpaid',
-        };
-
-        return Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            border: Border.all(color: AppColors.border),
-            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
+              if (constraints.maxWidth < 440) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(period, style: AppTextStyles.bodyMedium),
-                    if (inv.description != null)
-                      Text(
-                        inv.description!,
-                        style: AppTextStyles.caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    Row(
+                      children: [
+                        gradeBadge,
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(child: gradeDetails),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    dateLabel,
                   ],
-                ),
-              ),
-              Text(
-                NumberFormat.currency(
-                  symbol: '₸ ',
-                  decimalDigits: 0,
-                ).format(inv.amountDue),
-                style: AppTextStyles.bodyMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              AppBadge(text: statusLabel, variant: badgeVariant),
-            ],
+                );
+              }
+
+              return Row(
+                children: [
+                  gradeBadge,
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(child: gradeDetails),
+                  const SizedBox(width: AppSpacing.sm),
+                  dateLabel,
+                ],
+              );
+            },
           ),
         );
       },

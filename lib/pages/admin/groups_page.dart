@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_text_styles.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/api/api_exception.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/models/class_group.dart';
+import '../../core/models/user_role.dart';
 import '../../core/providers/providers.dart';
-import '../../widgets/page_header.dart';
+import '../../core/security/role_access.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../../widgets/app_badge.dart';
+import '../../widgets/page_header.dart';
 
 class GroupsPage extends ConsumerStatefulWidget {
   const GroupsPage({super.key});
@@ -28,19 +31,43 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
   }
 
   Future<void> _loadGroups() async {
-    setState(() => _isLoading = true);
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null ||
+        !RoleAccess.canAccessRoute(currentUser.role, '/admin/groups')) {
+      if (!mounted) return;
+      setState(() {
+        _groups = [];
+        _isLoading = false;
+        _errorMessage = 'Your account does not have permission to view groups.';
+      });
+      return;
+    }
+
     try {
       final adminService = ref.read(adminServiceProvider);
       final groups = await adminService.getClassGroups();
+      debugPrint(
+        '[GROUPS] loaded role=${currentUser.role.name} count=${groups.length}',
+      );
+
+      if (!mounted) return;
       setState(() {
         _groups = groups;
         _isLoading = false;
         _errorMessage = null;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
+        _groups = [];
         _isLoading = false;
-        _errorMessage = 'Failed to load groups: ${e.toString()}';
+        _errorMessage = _friendlyLoadError(e);
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -50,10 +77,31 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
     }
   }
 
+  String _friendlyLoadError(Object error) {
+    if (error is UnauthorizedException) {
+      return 'Your session expired. Please sign in again.';
+    }
+    if (error is ForbiddenException) {
+      return 'Your account does not have permission to view groups.';
+    }
+    if (error is NetworkException) {
+      return 'Unable to reach the server. Check the backend connection.';
+    }
+    if (error is ApiTimeoutException) {
+      return 'Group loading timed out. Please try again.';
+    }
+    if (error is ParseException) {
+      return 'Groups were returned in an unexpected format.';
+    }
+    if (error is ServerException) {
+      return 'The server returned an error while loading groups.';
+    }
+    return 'Failed to load groups: ${error.toString()}';
+  }
+
   Future<void> _showCreateGroupDialog() async {
     final nameController = TextEditingController();
     final gradeController = TextEditingController();
-    final monthlyFeeController = TextEditingController();
 
     final shouldCreate = await showDialog<bool>(
       context: context,
@@ -71,12 +119,6 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
               controller: gradeController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: 'Grade'),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextField(
-              controller: monthlyFeeController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Monthly Fee (₸)'),
             ),
           ],
         ),
@@ -106,7 +148,6 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
       await adminService.createClassGroup(
         name: nameController.text.trim(),
         grade: int.tryParse(gradeController.text.trim()),
-        monthlyFee: int.tryParse(monthlyFeeController.text.trim()),
       );
       await _loadGroups();
       if (mounted) {
@@ -125,22 +166,55 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = ref.watch(currentUserProvider);
+    final canManageGroups = currentUser?.role == UserRole.ADMIN;
+
     return Column(
       children: [
         PageHeader(
           title: 'Groups',
-          subtitle: '${_groups.length} total groups',
-          actions: [
-            ElevatedButton.icon(
-              onPressed: _showCreateGroupDialog,
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('New Group'),
-            ),
-          ],
+          subtitle:
+              '${_groups.length} total groups${_groups.isEmpty ? '' : ' · Tap a group to view students'}',
+          actions: canManageGroups
+              ? [
+                  ElevatedButton.icon(
+                    onPressed: _showCreateGroupDialog,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('New Group'),
+                  ),
+                ]
+              : null,
         ),
         Expanded(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
+              : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.groups_2_outlined,
+                          size: 48,
+                          color: AppColors.mutedForeground,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          _errorMessage!,
+                          style: AppTextStyles.bodyMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        OutlinedButton(
+                          onPressed: _loadGroups,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               : _groups.isEmpty
               ? Center(
                   child: Text(
@@ -150,21 +224,42 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                 )
               : LayoutBuilder(
                   builder: (ctx, constraints) {
-                    final cols = constraints.maxWidth > 900
+                    final cols = constraints.maxWidth > 1380
+                        ? 4
+                        : constraints.maxWidth > 960
                         ? 3
-                        : constraints.maxWidth > 600
+                        : constraints.maxWidth > 640
                         ? 2
                         : 1;
+                    final ratio = cols >= 4
+                        ? 1.28
+                        : cols == 3
+                        ? 1.4
+                        : cols == 2
+                        ? 1.5
+                        : 1.34;
                     return GridView.builder(
                       padding: const EdgeInsets.all(AppSpacing.lg),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: cols,
-                        childAspectRatio: 1.6,
+                        childAspectRatio: ratio,
                         crossAxisSpacing: AppSpacing.md,
                         mainAxisSpacing: AppSpacing.md,
                       ),
                       itemCount: _groups.length,
-                      itemBuilder: (_, i) => _GroupCard(group: _groups[i]),
+                      itemBuilder: (_, i) => _GroupCard(
+                        group: _groups[i],
+                        onTap: () {
+                          final route = Uri(
+                            path: '/admin/students',
+                            queryParameters: {
+                              'groupId': _groups[i].id.toString(),
+                              'groupName': _groups[i].name,
+                            },
+                          ).toString();
+                          context.push(route);
+                        },
+                      ),
                     );
                   },
                 ),
@@ -176,63 +271,146 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
 
 class _GroupCard extends StatelessWidget {
   final ClassGroup group;
-  const _GroupCard({required this.group});
+  final VoidCallback onTap;
 
-  String _formatFee(int? fee) {
-    if (fee == null) return '₸0';
-    return NumberFormat.currency(symbol: '₸', decimalDigits: 0).format(fee);
+  const _GroupCard({required this.group, required this.onTap});
+
+  String _buildMeta(ClassGroup group) {
+    return 'Grade ${group.grade?.toString() ?? '-'}';
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+    final textPrimary = AppColors.textPrimaryOf(context);
+    final textMuted = AppColors.textMutedOf(context);
+    final surface = AppColors.surfaceOf(context);
+    final border = AppColors.borderOf(context);
+    final primary = AppColors.primaryOf(context);
+
+    return Material(
+      color: surface,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        color: AppColors.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  group.name,
-                  style: AppTextStyles.heading4,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              AppBadge(text: 'Active', variant: BadgeVariant.active),
-            ],
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            border: Border.all(color: border),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Grade ${group.grade?.toString() ?? '-'} · ${_formatFee(group.monthlyFee)}/month',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.mutedForeground,
-            ),
-            overflow: TextOverflow.ellipsis,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compactHeader = constraints.maxWidth < 250;
+              final compactFooter = constraints.maxWidth < 280;
+
+              final titleBlock = Text(
+                group.name,
+                style: AppTextStyles.heading4.copyWith(color: textPrimary),
+                maxLines: compactHeader ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+              );
+
+              final statusBadge = const AppBadge(
+                text: 'Active',
+                variant: BadgeVariant.active,
+              );
+
+              final footerMeta = Row(
+                children: [
+                  const Icon(
+                    Icons.people_outline,
+                    size: 14,
+                    color: null,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      '${group.studentCount ?? 0} students',
+                      style: AppTextStyles.bodySmall.copyWith(color: textMuted),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              );
+
+              final actionLink = Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      'View students',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: null,
+                  ),
+                ],
+              );
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (compactHeader)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        titleBlock,
+                        const SizedBox(height: AppSpacing.sm),
+                        statusBadge,
+                      ],
+                    )
+                  else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: titleBlock),
+                        const SizedBox(width: AppSpacing.xs),
+                        statusBadge,
+                      ],
+                    ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    _buildMeta(group),
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: textMuted,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const Spacer(),
+                  if (compactFooter)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        footerMeta,
+                        const SizedBox(height: AppSpacing.sm),
+                        actionLink,
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(child: footerMeta),
+                        const SizedBox(width: AppSpacing.sm),
+                        Flexible(child: actionLink),
+                      ],
+                    ),
+                ],
+              );
+            },
           ),
-          const Spacer(),
-          Row(
-            children: [
-              const Icon(
-                Icons.people_outline,
-                size: 14,
-                color: AppColors.mutedForeground,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                '${group.studentCount ?? 0} students',
-                style: AppTextStyles.bodySmall,
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
