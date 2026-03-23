@@ -8,11 +8,19 @@ export default function Home() {
 
   useEffect(() => {
 
-    const role = localStorage.getItem("role");
-    const token = localStorage.getItem("token");
-    if (!token || !role) {
+    // const role = localStorage.getItem("role");
+    // const token = localStorage.getItem("token");
+    const userDataRaw = localStorage.getItem("userData");
+    // if (!token || !role) {
+    //   router.replace("/login");
+    // }
+    if (!userDataRaw) {
       router.replace("/login");
+      return;
     }
+    const userData = JSON.parse(userDataRaw);
+    const token = userData.token;
+    const role = userData.role;
     if (role === "ADMIN") {
       (async () => {
         const res = await fetch("http://136.116.64.6/api/admin/users", {

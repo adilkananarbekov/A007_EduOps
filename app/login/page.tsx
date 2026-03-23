@@ -27,8 +27,9 @@ export default function Login() {
     }
 
     const data = await res.json();
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("role", data.role);
+    localStorage.setItem("userData", JSON.stringify(data));
+    // localStorage.setItem("token", data.token);
+    // localStorage.setItem("role", data.role);
     // console.log(data);
     navigate.push("/");
   };

@@ -1,3 +1,5 @@
+'use client';
+
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,8 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { User, Mail, Phone, Lock, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function ParentSettings() {
+  const router = useRouter();
+
+  function SignOut() {
+    localStorage.removeItem("userData");
+    router.replace("/login");
+  }
+
   return (
     <Layout userRole="parent">
       {/* Header */}
@@ -138,7 +148,7 @@ export default function ParentSettings() {
                   <h4 className="font-semibold text-foreground">Sign Out</h4>
                   <p className="text-sm text-muted-foreground mt-1">Sign out from your account</p>
                 </div>
-                <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
+                <Button onClick={SignOut} variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
                   <LogOut className="w-4 h-4 mr-2" />
                   Sign Out
                 </Button>

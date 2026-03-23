@@ -9,37 +9,102 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/navigation";
 
+type Lesson = {
+  classGroupId: number;
+  classGroupName: string;
+  dayOfWeek: string;
+  endTime: string;
+  id: number;
+  lessonNumber: number;
+  room: string;
+  startTime: string;
+  subjectId: number;
+  subjectName: string;
+  teacherId: number;
+  teacherName: string;
+}
+
+function timeToMinutes(time: string) {
+  const [h, m] = time.split(":").map(Number)
+  return h * 60 + m
+}
+
+function getCurrentOrNextLesson(lessons: Lesson[], time: Date) {
+  // const now = new Date(2026, 2, 25, 8, 46)
+  // const now = new Date()
+  const now = time;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes()
+
+  const currentLesson = lessons.find(lesson => {
+    const start = timeToMinutes(lesson.startTime)
+    const end = timeToMinutes(lesson.endTime)
+    return currentMinutes >= start && currentMinutes <= end
+  })
+
+  if (currentLesson) {
+    return { type: "Current", lesson: currentLesson }
+  }
+
+  const nextLesson = lessons.find(lesson => {
+    const start = timeToMinutes(lesson.startTime)
+    return currentMinutes < start
+  })
+
+  if (nextLesson) {
+    return { type: "Next", lesson: nextLesson }
+  }
+
+  return null
+}
+
 export default function ParentDashboard() {
 
   const router = useRouter();
 
-  const [studentName, setStudentName] = useState("Alina");
-  const [hasDebt, setHasDebt] = useState(true);
-  const [debtAmount, setDebtAmount] = useState(3200);
-  const [attendanceRate, setAttendanceRate] = useState(88);
+  const [studentName, setStudentName] = useState("Loading...");
+  const [hasDebt, setHasDebt] = useState(false);
+  const [debtAmount, setDebtAmount] = useState(0);
+  const [attendanceRate, setAttendanceRate] = useState(0);
+  const [lesson, setLesson] = useState<any>(null);
+  const [classesPerWeek, setClassesPerWeek] = useState(0);
 
   useEffect(() => {
 
     (async () => {
-      const token = localStorage.getItem("token");
-      if (!token) {
+      const userDataRaw = localStorage.getItem("userData");
+      if (!userDataRaw) {
         // Redirect to login if no token is found
         router.replace("/login");
         return;
       }
+      const userData = JSON.parse(userDataRaw);
+      const token = userData.token;
 
-      const [scheduleRes, attendanceRes] = await Promise.all([
+      setStudentName(userData.firstName);
+
+      const [scheduleRes, attendanceRes, debtRes] = await Promise.all([
         fetch("http://136.116.64.6/api/schedule/week", {
           headers: { Authorization: `Bearer ${token}` },
         }),
         fetch("http://136.116.64.6/api/attendance/stats", {
           headers: { Authorization: `Bearer ${token}` },
         }),
+        fetch(`http://136.116.64.6/api/invoices/debt/${userData.userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
       ])
 
-      if (scheduleRes.ok && attendanceRes.ok) {
+      if (scheduleRes.ok && attendanceRes.ok && debtRes.ok) {
         const scheduleData = await scheduleRes.json();
         const attendanceData = await attendanceRes.json();
+        const debtData = await debtRes.json();
+
+        setDebtAmount(debtData.totalDebt);
+        if (debtData.totalDebt <= 0) {
+          setHasDebt(false);
+        } else {
+          setHasDebt(true);
+        }
 
         if (attendanceData.present + attendanceData.excused + attendanceData.late + attendanceData.absent === 0) {
           setAttendanceRate(100);
@@ -47,7 +112,29 @@ export default function ParentDashboard() {
           const newattendanceRate = Math.round((attendanceData.present + attendanceData.excused + attendanceData.late) / (attendanceData.present + attendanceData.excused + attendanceData.late + attendanceData.absent) * 100);
           setAttendanceRate(newattendanceRate);
         }
-        console.log(attendanceData, scheduleData)
+
+        // const todayDate = new Date(2026, 2, 25, 8, 44);
+        // const todayDate = new Date(2026, 2, 25, 10, 30);
+        const todayDate = new Date();
+        const today = todayDate
+          .toLocaleDateString("en-US", { weekday: "long" })
+          .toUpperCase();
+
+        const todayLessons = scheduleData.filter(
+          (l: any) => l.dayOfWeek === today
+        );
+        
+        const currentOrNext = getCurrentOrNextLesson(todayLessons, todayDate);
+        setLesson(currentOrNext);
+        
+        const cpw = scheduleData.filter(
+          (l: any) => l.subjectName === currentOrNext?.lesson.subjectName
+        );
+        setClassesPerWeek(cpw.length);
+
+        // console.log(attendanceData, scheduleData, debtAmount, hasDebt);
+        // console.log(todayLessons, currentOrNext, cpw.length);
+        
       } else {
         router.replace("/login");
       }
@@ -115,47 +202,61 @@ export default function ParentDashboard() {
           </Card>
 
           {/* Schedule Preview */}
-          <Card className="border-border">
-            <CardContent className="p-4 sm:p-5">
-              <h3 className="font-semibold text-foreground mb-4 text-sm sm:text-base">Next Class</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-base sm:text-lg font-bold text-foreground">Mathematics</span>
-                  <span className="text-xs sm:text-sm font-medium text-muted-foreground">Today</span>
-                </div>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    <span>14:00 - 15:30</span>
+          {lesson ? (
+            <Card className="border-border">
+              <CardContent className="p-4 sm:p-5">
+                <h3 className="font-semibold text-foreground mb-4 text-sm sm:text-base">{lesson.type} Class</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-base sm:text-lg font-bold text-foreground">{lesson.lesson.subjectName}</span>
+                    {/* <span className="text-xs sm:text-sm font-medium text-muted-foreground">Today</span> */}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    <span>Room 302</span>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      <span>{lesson.lesson.startTime} - {lesson.lesson.endTime}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      <span>Room {lesson.lesson.room}</span>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-sm text-muted-foreground">
+                      Teacher: <span className="text-foreground font-medium">{lesson.lesson.teacherName}</span>
+                    </p>
                   </div>
                 </div>
-                <div className="pt-2 border-t border-border">
-                  <p className="text-sm text-muted-foreground">
-                    Teacher: <span className="text-foreground font-medium">Asan Toktomushev</span>
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-border">
+              <CardContent className="p-4 sm:p-5 flex items-center justify-center h-45">
+                <p className="text-muted-foreground text-sm sm:text-base text-center">
+                  You're done for today!
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Quick Stats */}
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <Card className="border-border">
-              <CardContent className="p-3 sm:p-4 text-center">
-                <p className="text-xl sm:text-2xl font-bold text-foreground">4</p>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Classes/Week</p>
-              </CardContent>
-            </Card>
-            <Card className="border-border">
-              <CardContent className="p-3 sm:p-4 text-center">
-                <p className="text-xl sm:text-2xl font-bold text-foreground">2</p>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Active Groups</p>
-              </CardContent>
-            </Card>
+            {lesson && (
+              <>
+              <Card className="border-border">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <p className="text-xl sm:text-2xl font-bold text-foreground">{classesPerWeek}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">Classes/Week</p>
+                </CardContent>
+              </Card>
+              <Card className="border-border">
+                <CardContent className="p-3 sm:p-4 text-center">
+                  <p className="text-xl sm:text-2xl font-bold text-foreground">???????????</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">Active Groups</p>
+                </CardContent>
+              </Card>
+              </>
+            )}
           </div>
         </div>
       </main>

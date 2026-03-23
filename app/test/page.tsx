@@ -1,8 +1,8 @@
-// const token: string = 'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhM253QGdtYWlsLmNvbSIsImlhdCI6MTc3MjcwMTgyMiwiZXhwIjoxNzcyNzg4MjIyfQ.0A_85Ahu6kLrOQeS5iZuX6w7DqEG5G5RSP53uN54LgCFfCwwPXywfJJQ-7IykvvI78C2WxDItZGtjTOoU71Ynw'    // admin
-const token: string = 'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhM253MkBnbWFpbC5jb20iLCJpYXQiOjE3NzI3MDUxMDQsImV4cCI6MTc3Mjc5MTUwNH0.d9iD7eDCdvLoAKlPblfFWpJynkq-89FVgLW7Q-kp6UuLJXdVqEtvcRLwEsn_o5vlclu0x4bsh4UxsME5RypPNw'    // student
+// const token: string = 'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhM253QGdtYWlsLmNvbSIsImlhdCI6MTc3MzM3ODYxNSwiZXhwIjoxNzczNDY1MDE1fQ.u1AN_G6zZ4vhmYrFgO32OtShjQpGwHivWWOJJJPpXg90Ie4rq6jLf-k9UFRqJni1_Q_qi40-zZU7pVOA6rFb6w'    // admin
+const token: string = 'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhM253MkBnbWFpbC5jb20iLCJpYXQiOjE3NzMzNzY4MzIsImV4cCI6MTc3MzQ2MzIzMn0.YGk6RNR6pPkZXZwHE5D8WkNsW0y7ceRnOV0e1l1R0HQc1iT47vBvR7zxc3QDDXI4y57gNkDU_R5OaRXtZY42Qw'    // student
 
 async function createStudent() {
-  const res = await fetch("http://136.116.64.6/api/attendance/stats", {
+  const res = await fetch("http://136.116.64.6/api/invoices/debt/26", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -17,7 +17,7 @@ async function createStudent() {
   }
 }
 
-export default async function tst() {
+export default async function test() {
 
     await createStudent();
 
