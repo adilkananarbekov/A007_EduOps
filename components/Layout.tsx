@@ -3,6 +3,8 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -44,11 +46,30 @@ const parentNavigation = [
 
 export default function Layout({ children, userRole = "admin" }: LayoutProps) {
   const location = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigation = userRole === "parent" ? parentNavigation : adminNavigation;
-  const userName = userRole === "parent" ? "Alina Beknazarova" : "Admin User";
-  const userEmail = userRole === "parent" ? "alina.b@example.com" : "admin@eduops.kg";
+  // const userName = userRole === "parent" ? "Alina Beknazarova" : "Admin User";
+  // const userEmail = userRole === "parent" ? "alina.b@example.com" : "admin@eduops.kg";
   const userInitials = userRole === "parent" ? "AB" : "AA";
+  const [userName, setUserName] = useState("User")
+  const [userEmail, setUserEmail] = useState("user@example.com")
+
+  useEffect(() => {
+    
+        (async () => {
+          const userDataRaw = localStorage.getItem("userData");
+          if (!userDataRaw) {
+            // Redirect to login if no token is found
+            router.replace("/login");
+            return;
+          }
+          const userData = JSON.parse(userDataRaw);
+          setUserName(`${userData.firstName} ${userData.lastName}`);
+          setUserEmail(userData.email);
+        })();
+    
+  }, []);
 
   return (
     <div className="flex h-screen bg-white">

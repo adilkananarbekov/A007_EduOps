@@ -1,8 +1,8 @@
 // const token: string = 'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhM253QGdtYWlsLmNvbSIsImlhdCI6MTc3MzM3ODYxNSwiZXhwIjoxNzczNDY1MDE1fQ.u1AN_G6zZ4vhmYrFgO32OtShjQpGwHivWWOJJJPpXg90Ie4rq6jLf-k9UFRqJni1_Q_qi40-zZU7pVOA6rFb6w'    // admin
-const token: string = 'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhM253MkBnbWFpbC5jb20iLCJpYXQiOjE3NzMzNzY4MzIsImV4cCI6MTc3MzQ2MzIzMn0.YGk6RNR6pPkZXZwHE5D8WkNsW0y7ceRnOV0e1l1R0HQc1iT47vBvR7zxc3QDDXI4y57gNkDU_R5OaRXtZY42Qw'    // student
+const token: string = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhM253MkBnbWFpbC5jb20iLCJpYXQiOjE3NzQ0NDIwMDEsImV4cCI6MTc3NDUyODQwMX0.FpcMyuaNoER74k7T0_L__s_fYhWkKs6ewFAasVYZAPgNEwoQ3N62tBvHPgB2iWSIb6bbWty4-rRTCwtHVELYlA"    // student
 
 async function createStudent() {
-  const res = await fetch("http://136.116.64.6/api/invoices/debt/26", {
+  const res = await fetch("http://136.116.64.6/api/announcements/all", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
