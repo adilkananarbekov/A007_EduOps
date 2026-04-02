@@ -1,73 +1,123 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Bell, User, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
-const announcementsData = [
-  {
-    id: 1,
-    sender: "Admin",
-    senderType: "admin",
-    date: "2 hours ago",
-    content: "Reminder: School will be closed on Monday for the national holiday. Classes will resume on Tuesday.",
-    category: "school",
-    isImportant: true,
-  },
-  {
-    id: 2,
-    sender: "Gulnara Ibraimova",
-    senderType: "teacher",
-    date: "5 hours ago",
-    content: "English A1 group: Please complete Chapter 5 exercises for our next class on Wednesday.",
-    category: "group",
-    isImportant: false,
-  },
-  {
-    id: 3,
-    sender: "Admin",
-    senderType: "admin",
-    date: "1 day ago",
-    content: "New online payment system is now available. You can pay tuition fees through Mbank or O! Pay.",
-    category: "school",
-    isImportant: false,
-  },
-  {
-    id: 4,
-    sender: "Asan Toktomushev",
-    senderType: "teacher",
-    date: "2 days ago",
-    content: "Math group: Great work on the recent test! Average score was 85%. Keep it up!",
-    category: "group",
-    isImportant: false,
-  },
-  {
-    id: 5,
-    sender: "Admin",
-    senderType: "admin",
-    date: "3 days ago",
-    content: "Parent-Teacher conference scheduled for February 28th. Please check your email for time slots.",
-    category: "school",
-    isImportant: true,
-  },
-  {
-    id: 6,
-    sender: "Gulnara Ibraimova",
-    senderType: "teacher",
-    date: "1 week ago",
-    content: "English speaking club will be held every Friday at 16:00. All students are welcome to join!",
-    category: "group",
-    isImportant: false,
-  },
-];
+type Announcement = {
+  authorId: number,
+  authorName: string,
+  content: string,
+  createdAt: string,
+  expiresAt: string,
+  id: number,
+  important: boolean,
+  publishedAt: string,
+  targetClassGroupId: number,
+  targetClassGroupName: string,
+  targetRole: "STUDENT" | "TEACHER",
+  title: string
+}
+
+// const announcementsData = [
+//   {
+//     id: 1,
+//     sender: "Admin",
+//     senderType: "admin",
+//     date: "2 hours ago",
+//     content: "Reminder: School will be closed on Monday for the national holiday. Classes will resume on Tuesday.",
+//     category: "school",
+//     isImportant: true,
+//   },
+//   {
+//     id: 2,
+//     sender: "Gulnara Ibraimova",
+//     senderType: "teacher",
+//     date: "5 hours ago",
+//     content: "English A1 group: Please complete Chapter 5 exercises for our next class on Wednesday.",
+//     category: "group",
+//     isImportant: false,
+//   },
+//   {
+//     id: 3,
+//     sender: "Admin",
+//     senderType: "admin",
+//     date: "1 day ago",
+//     content: "New online payment system is now available. You can pay tuition fees through Mbank or O! Pay.",
+//     category: "school",
+//     isImportant: false,
+//   },
+//   {
+//     id: 4,
+//     sender: "Asan Toktomushev",
+//     senderType: "teacher",
+//     date: "2 days ago",
+//     content: "Math group: Great work on the recent test! Average score was 85%. Keep it up!",
+//     category: "group",
+//     isImportant: false,
+//   },
+//   {
+//     id: 5,
+//     sender: "Admin",
+//     senderType: "admin",
+//     date: "3 days ago",
+//     content: "Parent-Teacher conference scheduled for February 28th. Please check your email for time slots.",
+//     category: "school",
+//     isImportant: true,
+//   },
+//   {
+//     id: 6,
+//     sender: "Gulnara Ibraimova",
+//     senderType: "teacher",
+//     date: "1 week ago",
+//     content: "English speaking club will be held every Friday at 16:00. All students are welcome to join!",
+//     category: "group",
+//     isImportant: false,
+//   },
+// ];
 
 export default function MobileAnnouncements() {
   const [activeTab, setActiveTab] = useState<"school" | "group">("school");
+  const [announcementsData, setAnnouncementsData] = useState<Announcement[]>([]);
+  const [filteredAnnouncements, setFilteredAnnouncements] = useState<Announcement[]>([]);
+  const router = useRouter();
 
-  const filteredAnnouncements = announcementsData.filter((item) => item.category === activeTab);
+  useEffect(() => {
+    (async () => {
+      const userDataRaw = localStorage.getItem("userData");
+      if (!userDataRaw) {
+        // Redirect to login if no token is found
+        router.replace("/login");
+        return;
+      }
+      const userData = JSON.parse(userDataRaw);
+      const token = userData.token;
+
+      const announcementsRes = await fetch("http://136.116.64.6/api/announcements", {
+          headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (announcementsRes.ok) {
+        const announcementsData = await announcementsRes.json();
+        setAnnouncementsData(announcementsData);
+
+        const fa = announcementsData.filter((item: Announcement) => activeTab === "school" ? item.authorId === 25 : item.authorId !== 25);
+        setFilteredAnnouncements(fa);
+
+        console.log(announcementsData, fa);
+        
+      } else {
+        router.replace("/login");
+      }
+    })();
+
+  }, [activeTab]);
+
+  // const filteredAnnouncements = announcementsData.filter((item: Announcement) => item.authorId === 25);
 
   return (
     <Layout userRole="parent">
@@ -115,7 +165,7 @@ export default function MobileAnnouncements() {
               <Card
                 key={announcement.id}
                 className={`border-border ${
-                  announcement.isImportant ? "border-l-4 border-l-primary" : ""
+                  announcement.important ? "border-l-4 border-l-primary" : ""
                 }`}
               >
                 <CardContent className="p-4">
@@ -123,10 +173,10 @@ export default function MobileAnnouncements() {
                     {/* Avatar */}
                     <div
                       className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                        announcement.senderType === "admin" ? "bg-primary" : "bg-accent"
+                        announcement.authorId === 25 ? "bg-primary" : "bg-accent"
                       }`}
                     >
-                      {announcement.senderType === "admin" ? (
+                      {announcement.authorId === 25 ? (
                         <Bell className="w-5 h-5 text-white" />
                       ) : (
                         <User className="w-5 h-5 text-white" />
@@ -136,14 +186,14 @@ export default function MobileAnnouncements() {
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-semibold text-foreground text-sm">{announcement.sender}</h3>
-                        {announcement.isImportant && (
+                        <h3 className="font-semibold text-foreground text-sm">{announcement.authorName}</h3>
+                        {announcement.important && (
                           <Badge variant="outline" className="bg-red-50 text-primary border-red-200 text-xs">
                             Important
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mb-2">{announcement.date}</p>
+                      <p className="text-xs text-muted-foreground mb-2">{announcement.publishedAt}</p>
                       <p className="text-sm text-foreground leading-relaxed">{announcement.content}</p>
                     </div>
                   </div>

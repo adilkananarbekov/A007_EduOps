@@ -1,69 +1,101 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, CreditCard } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-const invoicesData = [
-  {
-    id: 1,
-    period: "February 2026",
-    course: "English Course",
-    amount: 5000,
-    status: "unpaid",
-    paymentMethod: null,
-  },
-  {
-    id: 2,
-    period: "February 2026",
-    course: "Math Course",
-    amount: 6000,
-    status: "unpaid",
-    paymentMethod: null,
-  },
-  {
-    id: 3,
-    period: "January 2026",
-    course: "English Course",
-    amount: 5000,
-    status: "paid",
-    paymentMethod: "Mbank",
-  },
-  {
-    id: 4,
-    period: "January 2026",
-    course: "Math Course",
-    amount: 6000,
-    status: "paid",
-    paymentMethod: "Cash",
-  },
-  {
-    id: 5,
-    period: "December 2025",
-    course: "English Course",
-    amount: 5000,
-    status: "paid",
-    paymentMethod: "Mbank",
-  },
-];
+// const invoicesData = [
+//   {
+//     id: 1,
+//     period: "February 2026",
+//     course: "English Course",
+//     amount: 5000,
+//     status: "unpaid",
+//     paymentMethod: null,
+//   },
+//   {
+//     id: 2,
+//     period: "February 2026",
+//     course: "Math Course",
+//     amount: 6000,
+//     status: "unpaid",
+//     paymentMethod: null,
+//   },
+//   {
+//     id: 3,
+//     period: "January 2026",
+//     course: "English Course",
+//     amount: 5000,
+//     status: "paid",
+//     paymentMethod: "Mbank",
+//   },
+//   {
+//     id: 4,
+//     period: "January 2026",
+//     course: "Math Course",
+//     amount: 6000,
+//     status: "paid",
+//     paymentMethod: "Cash",
+//   },
+//   {
+//     id: 5,
+//     period: "December 2025",
+//     course: "English Course",
+//     amount: 5000,
+//     status: "paid",
+//     paymentMethod: "Mbank",
+//   },
+// ];
 
 export default function MobileBilling() {
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [debt, setDebt] = useState(0);
+  const router = useRouter();
 
-  const totalPaid = invoicesData
-    .filter((inv) => inv.status === "paid")
-    .reduce((sum, inv) => sum + inv.amount, 0);
+  useEffect(() => {
+      (async () => {
+        const userDataRaw = localStorage.getItem("userData");
+        if (!userDataRaw) {
+          // Redirect to login if no token is found
+          router.replace("/login");
+          return;
+        }
+        const userData = JSON.parse(userDataRaw);
+        const token = userData.token;
+  
+        const debtRes = await fetch(`http://136.116.64.6/api/invoices/debt/${userData.userId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+  
+        if (debtRes.ok) {
+          const debtData = await debtRes.json();
+          setDebt(debtData.totalDebt);
+          // setDebt(debtData.totalDebt + 136000);
+  
+          console.log(debtData);
+          
+        } else {
+          router.replace("/login");
+        }
+      })();
+  
+    }, []);
+  // const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  const currentDebt = invoicesData
-    .filter((inv) => inv.status === "unpaid")
-    .reduce((sum, inv) => sum + inv.amount, 0);
+  // const totalPaid = invoicesData
+  //   .filter((inv) => inv.status === "paid")
+  //   .reduce((sum, inv) => sum + inv.amount, 0);
 
-  const toggleExpand = (id: number) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
+  // const currentDebt = invoicesData
+  //   .filter((inv) => inv.status === "unpaid")
+  //   .reduce((sum, inv) => sum + inv.amount, 0);
+
+  // const toggleExpand = (id: number) => {
+  //   setExpandedId(expandedId === id ? null : id);
+  // };
 
   return (
     <Layout userRole="parent">
@@ -82,7 +114,29 @@ export default function MobileBilling() {
         <div className="max-w-5xl mx-auto space-y-6">
           {/* Summary Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+
             <Card className="border-border">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  {debt <= 0 ? (
+                    <CreditCard className="w-5 h-5 text-accent" />
+                  ) : (
+                    <CreditCard className="w-5 h-5 text-primary" />
+                  )}
+                  <p className="text-sm text-muted-foreground font-medium">Current Debt</p>
+                </div>
+                {debt <= 0 ? (
+                  <p className="text-3xl font-bold text-foreground">{debt}</p>
+                ) : (
+                  <p className="text-3xl font-bold text-primary">{debt}</p>
+                )}
+                <p className="text-sm text-muted-foreground mt-1">KGS</p>
+              </CardContent>
+            </Card>
+
+
+            {/* <Card className="border-border">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-2">
                   <CreditCard className="w-5 h-5 text-accent" />
@@ -101,11 +155,11 @@ export default function MobileBilling() {
                 <p className="text-3xl font-bold text-primary">{currentDebt.toLocaleString()}</p>
                 <p className="text-sm text-muted-foreground mt-1">KGS</p>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
 
           {/* Invoice List */}
-          <Card className="border-border">
+          {/* <Card className="border-border">
             <CardHeader>
               <CardTitle>Payment History</CardTitle>
             </CardHeader>
@@ -143,10 +197,10 @@ export default function MobileBilling() {
                           <ChevronDown className="w-5 h-5 text-muted-foreground" />
                         )}
                       </div>
-                    </div>
+                    </div> */}
 
                     {/* Expanded Content */}
-                    {expandedId === invoice.id && (
+                    {/* {expandedId === invoice.id && (
                       <div className="mt-4 pt-4 border-t border-border space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Invoice ID:</span>
@@ -173,7 +227,7 @@ export default function MobileBilling() {
                 </Card>
               ))}
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </main>
     </Layout>

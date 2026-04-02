@@ -132,6 +132,7 @@ export default function ParentDashboard() {
         );
         setClassesPerWeek(cpw.length);
 
+        // console.log(debtData);
         // console.log(attendanceData, scheduleData, debtAmount, hasDebt);
         // console.log(todayLessons, currentOrNext, cpw.length);
         
