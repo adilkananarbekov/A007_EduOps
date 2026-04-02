@@ -12,6 +12,14 @@ import { useRouter } from "next/navigation";
 export default function ParentSettings() {
   const router = useRouter();
 
+  const userDataRaw = localStorage.getItem("userData");
+  if (!userDataRaw) {
+    // Redirect to login if no token is found
+    router.replace("/login");
+    return;
+  }
+  const userData = JSON.parse(userDataRaw);
+
   function SignOut() {
     localStorage.removeItem("userData");
     router.replace("/login");
@@ -40,30 +48,30 @@ export default function ParentSettings() {
             <CardContent className="space-y-6">
               <div className="flex items-center gap-4">
                 <Avatar className="w-20 h-20">
-                  <AvatarFallback className="bg-primary text-white text-2xl">AB</AvatarFallback>
+                  <AvatarFallback className="bg-primary text-white text-2xl">{userData.firstName[0]}{userData.lastName[0]}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <h3 className="text-lg font-semibold text-foreground">Alina Beknazarova</h3>
-                  <p className="text-sm text-muted-foreground">Student</p>
+                  <h3 className="text-lg font-semibold text-foreground">{userData.firstName} {userData.lastName}</h3>
+                  <p className="text-sm text-muted-foreground">{userData.role}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" defaultValue="Alina Beknazarova" />
+                  <Input id="name" defaultValue={`${userData.firstName} ${userData.lastName}`} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" type="email" defaultValue="alina.b@example.com" />
+                  <Input id="email" type="email" defaultValue={userData.email} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" defaultValue="+996 555 123 456" />
+                  <Input id="phone" type="tel" defaultValue="+996 555 123 456?!?!?!?!?!?!?" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="parentPhone">Parent Phone</Label>
-                  <Input id="parentPhone" type="tel" defaultValue="+996 555 654 321" />
+                  <Input id="parentPhone" type="tel" defaultValue="+996 555 654 321!?!?!?!??!?!" />
                 </div>
               </div>
 
