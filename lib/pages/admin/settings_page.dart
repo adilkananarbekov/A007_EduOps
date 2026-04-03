@@ -1,151 +1,205 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/api/api_constants.dart';
+import '../../core/constants/app_spacing.dart';
+import '../../core/providers/providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../core/constants/app_spacing.dart';
+import '../../widgets/app_card.dart';
 import '../../widgets/page_header.dart';
 
-class SettingsPage extends StatefulWidget {
+class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
-  @override
-  State<SettingsPage> createState() => _SettingsPageState();
-}
+  Future<void> _handleLogout(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(authNotifierProvider.notifier).logout();
+      if (context.mounted) {
+        context.go('/login');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Logout failed: ${e.toString()}')),
+        );
+      }
+    }
+  }
 
-class _SettingsPageState extends State<SettingsPage> {
-  final _orgName = TextEditingController(text: 'EduOps Academy');
-  final _email = TextEditingController(text: 'admin@eduops.kg');
-  final _phone = TextEditingController(text: '+996 700 000 000');
-  String _timezone = 'Asia/Bishkek (GMT+6)';
-  String _currency = 'KGS (₸)';
-  String _language = 'Russian';
-  int _attendanceWindow = 15;
-  bool _notifyAttendance = true;
-  bool _notifyPayments = true;
-  bool _notifySchedule = false;
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(currentUserProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final dropdownTextStyle = AppTextStyles.bodyMedium.copyWith(
+      color: AppColors.textPrimaryOf(context),
+    );
+    final supportedModules = const [
+      'Students',
+      'Groups',
+      'Teachers',
+      'Subjects',
+      'Schedule',
+      'Attendance',
+      'Grades',
+      'Announcements',
+    ];
+
+    final accountSection = AppCard(
+      header: Text('Account', style: AppTextStyles.heading4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ReadOnlyRow(label: 'Name', value: currentUser?.fullName ?? '—'),
+          const SizedBox(height: AppSpacing.md),
+          _ReadOnlyRow(label: 'Email', value: currentUser?.email ?? '—'),
+          const SizedBox(height: AppSpacing.md),
+          _ReadOnlyRow(
+            label: 'Role',
+            value: currentUser?.role.displayName ?? '—',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _ReadOnlyRow(
+            label: 'User ID',
+            value: currentUser == null ? '—' : currentUser.userId.toString(),
+          ),
+        ],
+      ),
+    );
+
+    final backendSection = AppCard(
+      header: Text('Connected Backend', style: AppTextStyles.heading4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ReadOnlyRow(label: 'Base API', value: ApiConstants.baseApiUrl),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Live modules',
+            style: AppTextStyles.label.copyWith(
+              color: AppColors.textPrimaryOf(context),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: supportedModules
+                .map((module) => _SupportChip(label: module))
+                .toList(),
+          ),
+        ],
+      ),
+    );
+
+    final appearanceSection = AppCard(
+      header: Text('Appearance', style: AppTextStyles.heading4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Theme', style: AppTextStyles.label),
+          const SizedBox(height: AppSpacing.sm),
+          DropdownButtonFormField<ThemeMode>(
+            initialValue: themeMode,
+            style: dropdownTextStyle,
+            dropdownColor: AppColors.surfaceOf(context),
+            iconEnabledColor: AppColors.textMutedOf(context),
+            items: [
+              DropdownMenuItem(
+                value: ThemeMode.light,
+                child: Text('Light', style: dropdownTextStyle),
+              ),
+              DropdownMenuItem(
+                value: ThemeMode.system,
+                child: Text('Use device', style: dropdownTextStyle),
+              ),
+              DropdownMenuItem(
+                value: ThemeMode.dark,
+                child: Text('Dark', style: dropdownTextStyle),
+              ),
+            ],
+            onChanged: (mode) async {
+              if (mode == null) {
+                return;
+              }
+              await ref.read(themeModeProvider.notifier).setThemeMode(mode);
+            },
+            decoration: const InputDecoration(),
+          ),
+        ],
+      ),
+    );
+
+    final sessionSection = AppCard(
+      header: Text('Session', style: AppTextStyles.heading4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Profile edits are server-managed. This screen only exposes settings that the current backend supports.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textMutedOf(context),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _handleLogout(context, ref),
+              icon: const Icon(Icons.logout, size: 16),
+              label: const Text('Sign out'),
+            ),
+          ),
+        ],
+      ),
+    );
+
     return Column(
       children: [
-        PageHeader(
+        const PageHeader(
           title: 'Settings',
-          subtitle: 'Configure your institution settings',
-          actions: [
-            ElevatedButton.icon(
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings saved successfully')),
-              ),
-              icon: const Icon(Icons.save_outlined, size: 16),
-              label: const Text('Save'),
-            ),
-          ],
+          subtitle: 'Account, appearance, and backend connection.',
         ),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(AppSpacing.lg),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _Section(
-                    title: 'Organization',
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 1080;
+                final leftColumn = Column(
+                  children: [
+                    accountSection,
+                    const SizedBox(height: AppSpacing.lg),
+                    backendSection,
+                  ],
+                );
+                final rightColumn = Column(
+                  children: [
+                    appearanceSection,
+                    const SizedBox(height: AppSpacing.lg),
+                    sessionSection,
+                  ],
+                );
+
+                if (!isWide) {
+                  return Column(
                     children: [
-                      _Field(
-                        'Institution Name',
-                        _orgName,
-                        Icons.business_outlined,
-                      ),
-                      _Field('Email', _email, Icons.email_outlined),
-                      _Field('Phone', _phone, Icons.phone_outlined),
+                      leftColumn,
+                      const SizedBox(height: AppSpacing.lg),
+                      rightColumn,
                     ],
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  _Section(
-                    title: 'Regional',
-                    children: [
-                      _DropdownField('Timezone', _timezone, [
-                        'Asia/Bishkek (GMT+6)',
-                        'UTC',
-                        'Europe/Moscow (GMT+3)',
-                      ], (v) => setState(() => _timezone = v!)),
-                      _DropdownField('Currency', _currency, [
-                        'KGS (₸)',
-                        'USD (\$)',
-                        'EUR (€)',
-                      ], (v) => setState(() => _currency = v!)),
-                      _DropdownField('Language', _language, [
-                        'Russian',
-                        'Kyrgyz',
-                        'English',
-                      ], (v) => setState(() => _language = v!)),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  _Section(
-                    title: 'Attendance',
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.border),
-                          borderRadius: BorderRadius.circular(
-                            AppSpacing.radiusLg,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Attendance Window (minutes)',
-                              style: AppTextStyles.label,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(
-                              'Teachers can mark attendance $_attendanceWindow min after class starts',
-                              style: AppTextStyles.bodySmall,
-                            ),
-                            Slider(
-                              value: _attendanceWindow.toDouble(),
-                              min: 5,
-                              max: 60,
-                              divisions: 11,
-                              label: '$_attendanceWindow min',
-                              activeColor: AppColors.primary,
-                              onChanged: (v) =>
-                                  setState(() => _attendanceWindow = v.round()),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  _Section(
-                    title: 'Notifications',
-                    children: [
-                      _Toggle(
-                        'Attendance Alerts',
-                        'Notify when attendance drops below threshold',
-                        _notifyAttendance,
-                        (v) => setState(() => _notifyAttendance = v),
-                      ),
-                      _Toggle(
-                        'Payment Reminders',
-                        'Send reminders for unpaid invoices',
-                        _notifyPayments,
-                        (v) => setState(() => _notifyPayments = v),
-                      ),
-                      _Toggle(
-                        'Schedule Changes',
-                        'Notify on schedule updates',
-                        _notifySchedule,
-                        (v) => setState(() => _notifySchedule = v),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: leftColumn),
+                    const SizedBox(width: AppSpacing.lg),
+                    Expanded(child: rightColumn),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -154,115 +208,63 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 }
 
-class _Section extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
-  const _Section({required this.title, required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: AppTextStyles.heading4),
-        const SizedBox(height: AppSpacing.md),
-        ...children.map(
-          (c) => Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: c,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _Field extends StatelessWidget {
+class _ReadOnlyRow extends StatelessWidget {
   final String label;
-  final TextEditingController controller;
-  final IconData icon;
-  const _Field(this.label, this.controller, this.icon);
+  final String value;
+
+  const _ReadOnlyRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTextStyles.label),
-        const SizedBox(height: AppSpacing.sm),
-        TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            prefixIcon: Icon(icon, size: 18, color: AppColors.mutedForeground),
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.label.copyWith(
+              color: AppColors.textMutedOf(context),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: AppSpacing.xs),
+          SelectableText(
+            value,
+            maxLines: 3,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textPrimaryOf(context),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _DropdownField extends StatelessWidget {
-  final String label, value;
-  final List<String> options;
-  final ValueChanged<String?> onChanged;
-  const _DropdownField(this.label, this.value, this.options, this.onChanged);
+class _SupportChip extends StatelessWidget {
+  final String label;
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTextStyles.label),
-        const SizedBox(height: AppSpacing.sm),
-        DropdownButtonFormField<String>(
-          value: value,
-          items: options
-              .map((o) => DropdownMenuItem(value: o, child: Text(o)))
-              .toList(),
-          onChanged: onChanged,
-          decoration: const InputDecoration(),
-        ),
-      ],
-    );
-  }
-}
-
-class _Toggle extends StatelessWidget {
-  final String title, subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  const _Toggle(this.title, this.subtitle, this.value, this.onChanged);
+  const _SupportChip({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(subtitle, style: AppTextStyles.bodySmall),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: AppColors.primary,
-          ),
-        ],
+      decoration: BoxDecoration(
+        color: AppColors.surfaceStrongOf(context),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.borderOf(context)),
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.bodySmall.copyWith(
+          color: AppColors.textPrimaryOf(context),
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
