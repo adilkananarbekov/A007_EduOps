@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/models/announcement.dart';
+import '../../core/models/user_role.dart';
 import '../../core/providers/providers.dart';
 import '../../widgets/app_badge.dart';
 
@@ -29,8 +30,11 @@ class _AnnouncementsPageState extends ConsumerState<AnnouncementsPage> {
   Future<void> _loadAnnouncements() async {
     setState(() => _isLoading = true);
     try {
+      final currentUser = ref.read(currentUserProvider);
       final announcementService = ref.read(announcementServiceProvider);
-      final announcements = await announcementService.getAllAnnouncements();
+      final announcements = currentUser?.role == UserRole.ADMIN
+          ? await announcementService.getAllAnnouncements()
+          : await announcementService.getMyAnnouncements();
       setState(() {
         _announcements = announcements;
         _isLoading = false;
@@ -69,9 +73,13 @@ class _AnnouncementsPageState extends ConsumerState<AnnouncementsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = ref.watch(currentUserProvider);
     final recentCount = _announcements
         .where((a) => DateTime.now().difference(a.createdAt).inDays < 3)
         .length;
+    final subtitle = currentUser?.role == UserRole.ADMIN
+        ? 'Institution-wide updates'
+        : 'Recent updates for your classes';
 
     return Column(
       children: [
@@ -80,46 +88,70 @@ class _AnnouncementsPageState extends ConsumerState<AnnouncementsPage> {
           decoration: const BoxDecoration(
             border: Border(bottom: BorderSide(color: AppColors.border)),
           ),
-          child: Row(
-            children: [
-              Column(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final statusWidget = _isLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : recentCount > 0
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.redBg,
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.radiusXl,
+                        ),
+                      ),
+                      child: Text(
+                        '$recentCount new',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    )
+                  : null;
+
+              final titleBlock = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Announcements', style: AppTextStyles.heading3),
                   Text(
-                    'Stay up-to-date',
+                    subtitle,
                     style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.mutedForeground,
                     ),
                   ),
                 ],
-              ),
-              const Spacer(),
-              if (_isLoading)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else if (recentCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.redBg,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-                  ),
-                  child: Text(
-                    '$recentCount new',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-            ],
+              );
+
+              if (constraints.maxWidth < 420) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    titleBlock,
+                    if (statusWidget != null) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      statusWidget,
+                    ],
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: titleBlock),
+                  // ignore: use_null_aware_elements
+                  if (statusWidget != null) statusWidget,
+                ],
+              );
+            },
           ),
         ),
         Expanded(
@@ -135,9 +167,9 @@ class _AnnouncementsPageState extends ConsumerState<AnnouncementsPage> {
               : ListView.separated(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   itemCount: _announcements.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (context, index) =>
                       const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (_, i) {
+                  itemBuilder: (context, i) {
                     final a = _announcements[i];
                     final isNew =
                         DateTime.now().difference(a.createdAt).inDays < 3;
@@ -167,6 +199,8 @@ class _AnnouncementsPageState extends ConsumerState<AnnouncementsPage> {
                                   style: AppTextStyles.bodyMedium.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               if (isNew) ...[
@@ -186,14 +220,15 @@ class _AnnouncementsPageState extends ConsumerState<AnnouncementsPage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: AppSpacing.sm),
-                          Row(
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: AppSpacing.xs,
                             children: [
                               const Icon(
                                 Icons.access_time_outlined,
                                 size: 12,
                                 color: AppColors.mutedForeground,
                               ),
-                              const SizedBox(width: AppSpacing.xs),
                               Text(
                                 _formatDate(a.createdAt),
                                 style: AppTextStyles.caption,

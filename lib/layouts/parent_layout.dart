@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../core/theme/app_colors.dart';
-import '../core/theme/app_text_styles.dart';
 import '../core/constants/app_spacing.dart';
 import '../core/providers/providers.dart';
+import '../core/router/app_back_navigation.dart';
+import '../core/theme/app_colors.dart';
+import '../core/theme/app_text_styles.dart';
 
 class ParentLayout extends ConsumerWidget {
   final Widget child;
@@ -25,13 +26,13 @@ class ParentLayout extends ConsumerWidget {
       Icons.calendar_today,
     ),
     _ParentNavItem(
-      'Billing',
-      '/parent/billing',
-      Icons.credit_card_outlined,
-      Icons.credit_card,
+      'Records',
+      '/parent/records',
+      Icons.school_outlined,
+      Icons.school,
     ),
     _ParentNavItem(
-      'Feed',
+      'Updates',
       '/parent/announcements',
       Icons.message_outlined,
       Icons.message,
@@ -66,83 +67,147 @@ class ParentLayout extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              ),
-              child: const Icon(Icons.school, color: Colors.white, size: 18),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Text('EduOps', style: AppTextStyles.heading4),
-          ],
-        ),
-        actions: [
-          Stack(
+    final canGoBack = AppBackNavigation.canGoBack(context, currentRoute);
+    final fallbackRoute = AppBackNavigation.fallbackFor(currentRoute);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final showBottomLabels = screenWidth >= 390;
+    final surface = AppColors.surfaceOf(context);
+    final canvas = AppColors.canvasOf(context);
+    final border = AppColors.borderOf(context);
+    final primary = AppColors.primaryOf(context);
+    final textPrimary = AppColors.textPrimaryOf(context);
+    final textMuted = AppColors.textMutedOf(context);
+
+    return PopScope(
+      canPop: context.canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && fallbackRoute != null) {
+          context.go(fallbackRoute);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: canvas,
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          leading: canGoBack
+              ? IconButton(
+                  onPressed: () =>
+                      AppBackNavigation.handleBack(context, currentRoute),
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                  tooltip: 'Back',
+                )
+              : null,
+          titleSpacing: AppSpacing.md,
+          title: Row(
             children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.notifications_outlined,
-                  color: AppColors.mutedForeground,
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.primarySoftOf(context),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 ),
-                onPressed: () => context.go('/parent/announcements'),
+                child: Icon(Icons.school_rounded, color: primary),
               ),
-              Positioned(
-                top: 10,
-                right: 10,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'EduOps',
+                      style: AppTextStyles.heading4.copyWith(
+                        color: textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'Family portal',
+                      style: AppTextStyles.caption.copyWith(color: textMuted),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          IconButton(
-            icon: const Icon(
-              Icons.person_outline,
-              color: AppColors.mutedForeground,
+          actions: [
+            IconButton(
+              icon: Icon(Icons.campaign_outlined, color: textMuted),
+              onPressed: currentRoute == '/parent/announcements'
+                  ? null
+                  : () => context.push('/parent/announcements'),
             ),
-            onPressed: () => context.go('/parent/settings'),
+            IconButton(
+              icon: Icon(Icons.person_outline, color: textMuted),
+              onPressed: currentRoute == '/parent/settings'
+                  ? null
+                  : () => context.push('/parent/settings'),
+            ),
+            IconButton(
+              icon: Icon(Icons.logout, color: textMuted),
+              onPressed: () => _handleLogout(context, ref),
+              tooltip: 'Logout',
+            ),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(height: 1, color: border),
           ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: AppColors.mutedForeground),
-            onPressed: () => _handleLogout(context, ref),
-            tooltip: 'Logout',
+        ),
+        body: SafeArea(
+          top: false,
+          child: Container(
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              border: Border.all(color: border),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              child: child,
+            ),
           ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: AppColors.border),
         ),
-      ),
-      body: child,
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.border)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => context.go(_navItems[index].route),
-          items: _navItems
-              .map(
-                (item) => BottomNavigationBarItem(
-                  icon: Icon(item.icon),
-                  activeIcon: Icon(item.activeIcon),
-                  label: item.label,
+        bottomNavigationBar: SafeArea(
+          minimum: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            0,
+            AppSpacing.md,
+            AppSpacing.md,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              border: Border.all(color: border),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.shadowOf(context).withValues(alpha: 0.05),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
                 ),
-              )
-              .toList(),
+              ],
+            ),
+            child: BottomNavigationBar(
+              currentIndex: _currentIndex,
+              showSelectedLabels: showBottomLabels,
+              showUnselectedLabels: showBottomLabels,
+              onTap: (index) => context.go(_navItems[index].route),
+              items: _navItems
+                  .map(
+                    (item) => BottomNavigationBarItem(
+                      icon: Icon(item.icon),
+                      activeIcon: Icon(item.activeIcon),
+                      label: item.label,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
         ),
       ),
     );

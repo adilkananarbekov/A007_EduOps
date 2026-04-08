@@ -33,8 +33,7 @@ class _MobileSchedulePageState extends ConsumerState<MobileSchedulePage> {
     setState(() => _isLoading = true);
     try {
       final currentUser = ref.read(currentUserProvider);
-      if (currentUser?.profileId != null &&
-          currentUser?.role == UserRole.STUDENT) {
+      if (currentUser?.role == UserRole.STUDENT) {
         final scheduleService = ref.read(scheduleServiceProvider);
         final schedules = await scheduleService.getWeeklySchedule();
         setState(() {
@@ -93,6 +92,8 @@ class _MobileSchedulePageState extends ConsumerState<MobileSchedulePage> {
                           style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.mutedForeground,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -175,9 +176,9 @@ class _MobileSchedulePageState extends ConsumerState<MobileSchedulePage> {
               : ListView.separated(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   itemCount: lessons.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (context, index) =>
                       const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (_, i) {
+                  itemBuilder: (context, i) {
                     final l = lessons[i];
                     return Container(
                       padding: const EdgeInsets.all(AppSpacing.md),
@@ -187,38 +188,12 @@ class _MobileSchedulePageState extends ConsumerState<MobileSchedulePage> {
                           AppSpacing.radiusLg,
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  l.subjectName,
-                                  style: AppTextStyles.bodyMedium.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  l.teacherName ?? 'Teacher TBA',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.mutedForeground,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final metaBlock = Column(
+                            crossAxisAlignment: constraints.maxWidth < 420
+                                ? CrossAxisAlignment.start
+                                : CrossAxisAlignment.end,
                             children: [
                               Text(
                                 '${l.startTime} – ${l.endTime}',
@@ -232,10 +207,79 @@ class _MobileSchedulePageState extends ConsumerState<MobileSchedulePage> {
                                   style: AppTextStyles.caption.copyWith(
                                     color: AppColors.mutedForeground,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                             ],
-                          ),
-                        ],
+                          );
+
+                          final lessonInfo = Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                l.subjectName,
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                l.teacherName ?? 'Teacher TBA',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.mutedForeground,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          );
+
+                          if (constraints.maxWidth < 420) {
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 4,
+                                  height: 72,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.md),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      lessonInfo,
+                                      const SizedBox(height: AppSpacing.sm),
+                                      metaBlock,
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              Container(
+                                width: 4,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(child: lessonInfo),
+                              const SizedBox(width: AppSpacing.md),
+                              metaBlock,
+                            ],
+                          );
+                        },
                       ),
                     );
                   },

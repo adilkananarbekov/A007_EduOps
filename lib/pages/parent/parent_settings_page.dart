@@ -1,25 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/api/api_constants.dart';
+import '../../core/constants/app_spacing.dart';
+import '../../core/providers/providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../core/constants/app_spacing.dart';
+import '../../widgets/app_card.dart';
 
-class ParentSettingsPage extends StatefulWidget {
+class ParentSettingsPage extends ConsumerWidget {
   const ParentSettingsPage({super.key});
 
-  @override
-  State<ParentSettingsPage> createState() => _ParentSettingsPageState();
-}
+  Future<void> _handleSignOut(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(authNotifierProvider.notifier).logout();
+      if (context.mounted) {
+        context.go('/login');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sign out failed: ${e.toString()}')),
+        );
+      }
+    }
+  }
 
-class _ParentSettingsPageState extends State<ParentSettingsPage> {
-  final _nameController = TextEditingController(text: 'Aynura Bekova');
-  final _phoneController = TextEditingController(text: '+996 700 111 222');
-  bool _pushNotifications = true;
-  bool _smsNotifications = false;
-  String _language = 'Russian';
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(currentUserProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final dropdownTextStyle = AppTextStyles.bodyMedium.copyWith(
+      color: AppColors.textPrimaryOf(context),
+    );
+    final initials = (currentUser?.fullName.isNotEmpty ?? false)
+        ? currentUser!.fullName
+              .split(' ')
+              .where((part) => part.isNotEmpty)
+              .take(2)
+              .map((part) => part[0].toUpperCase())
+              .join()
+        : 'U';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -28,108 +50,114 @@ class _ParentSettingsPageState extends State<ParentSettingsPage> {
           Text('Settings', style: AppTextStyles.heading3),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Manage your account',
+            'Account, appearance, and session controls.',
             style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.mutedForeground,
+              color: AppColors.textMutedOf(context),
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
-
-          // Avatar
           Center(
-            child: Stack(
-              children: [
-                CircleAvatar(
-                  radius: 48,
-                  backgroundColor: AppColors.muted,
-                  child: Text(
-                    'AB',
-                    style: AppTextStyles.heading2.copyWith(
-                      color: AppColors.foreground,
-                    ),
-                  ),
+            child: CircleAvatar(
+              radius: 40,
+              backgroundColor: AppColors.primarySoftOf(context),
+              child: Text(
+                initials,
+                style: AppTextStyles.heading3.copyWith(
+                  color: AppColors.primaryOf(context),
                 ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.xs),
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          AppCard(
+            header: Text('Account', style: AppTextStyles.heading4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ReadOnlyField(
+                  label: 'Name',
+                  value: currentUser?.fullName ?? '—',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _ReadOnlyField(
+                  label: 'Email',
+                  value: currentUser?.email ?? '—',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _ReadOnlyField(
+                  label: 'Role',
+                  value: currentUser?.role.displayName ?? '—',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AppCard(
+            header: Text('Appearance', style: AppTextStyles.heading4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Theme', style: AppTextStyles.label),
+                const SizedBox(height: AppSpacing.sm),
+                DropdownButtonFormField<ThemeMode>(
+                  initialValue: themeMode,
+                  style: dropdownTextStyle,
+                  dropdownColor: AppColors.surfaceOf(context),
+                  iconEnabledColor: AppColors.textMutedOf(context),
+                  items: [
+                    DropdownMenuItem(
+                      value: ThemeMode.light,
+                      child: Text('Light', style: dropdownTextStyle),
                     ),
-                    child: const Icon(
-                      Icons.camera_alt_outlined,
-                      size: 16,
-                      color: Colors.white,
+                    DropdownMenuItem(
+                      value: ThemeMode.system,
+                      child: Text('Use device', style: dropdownTextStyle),
                     ),
+                    DropdownMenuItem(
+                      value: ThemeMode.dark,
+                      child: Text('Dark', style: dropdownTextStyle),
+                    ),
+                  ],
+                  onChanged: (mode) async {
+                    if (mode == null) {
+                      return;
+                    }
+                    await ref
+                        .read(themeModeProvider.notifier)
+                        .setThemeMode(mode);
+                  },
+                  decoration: const InputDecoration(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AppCard(
+            header: Text('Backend', style: AppTextStyles.heading4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ReadOnlyField(
+                  label: 'Base API',
+                  value: ApiConstants.baseApiUrl,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Profile edits are controlled on the server. This app currently exposes read-only account data for student sessions.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textMutedOf(context),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.xl),
-
-          // Profile section
-          _SectionTitle('Profile'),
-          const SizedBox(height: AppSpacing.sm),
-          _SettingsField('Full Name', _nameController, Icons.person_outline),
-          const SizedBox(height: AppSpacing.md),
-          _SettingsField(
-            'Phone Number',
-            _phoneController,
-            Icons.phone_outlined,
-          ),
-          const SizedBox(height: AppSpacing.xl),
-
-          // Preferences
-          _SectionTitle('Preferences'),
-          const SizedBox(height: AppSpacing.sm),
-          _DropdownSetting('Language', _language, [
-            'Russian',
-            'Kyrgyz',
-            'English',
-          ], (v) => setState(() => _language = v!)),
-          const SizedBox(height: AppSpacing.xl),
-
-          // Notifications
-          _SectionTitle('Notifications'),
-          const SizedBox(height: AppSpacing.sm),
-          _ToggleSetting(
-            'Push Notifications',
-            'Receive notifications on your device',
-            _pushNotifications,
-            (v) => setState(() => _pushNotifications = v),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _ToggleSetting(
-            'SMS Notifications',
-            'Receive SMS for important alerts',
-            _smsNotifications,
-            (v) => setState(() => _smsNotifications = v),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-
-          // Save
+          const SizedBox(height: AppSpacing.lg),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Settings saved'))),
-              child: const Text('Save Changes'),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () => GoRouterHelper(context).go('/login'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-              ),
-              child: const Text('Sign Out'),
+            child: OutlinedButton.icon(
+              onPressed: () => _handleSignOut(context, ref),
+              icon: const Icon(Icons.logout, size: 16),
+              label: const Text('Sign out'),
             ),
           ),
         ],
@@ -138,103 +166,33 @@ class _ParentSettingsPageState extends State<ParentSettingsPage> {
   }
 }
 
-// ignore: unused_element
-extension on BuildContext {
-  void go(String route) => GoRouter.of(this).go(route);
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String title;
-  const _SectionTitle(this.title);
-  @override
-  Widget build(BuildContext context) =>
-      Text(title, style: AppTextStyles.heading4);
-}
-
-class _SettingsField extends StatelessWidget {
+class _ReadOnlyField extends StatelessWidget {
   final String label;
-  final TextEditingController controller;
-  final IconData icon;
-  const _SettingsField(this.label, this.controller, this.icon);
+  final String value;
+
+  const _ReadOnlyField({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTextStyles.label),
-        const SizedBox(height: AppSpacing.xs),
-        TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            prefixIcon: Icon(icon, size: 18, color: AppColors.mutedForeground),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DropdownSetting extends StatelessWidget {
-  final String label, value;
-  final List<String> options;
-  final ValueChanged<String?> onChanged;
-  const _DropdownSetting(this.label, this.value, this.options, this.onChanged);
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTextStyles.label),
-        const SizedBox(height: AppSpacing.xs),
-        DropdownButtonFormField<String>(
-          value: value,
-          items: options
-              .map((o) => DropdownMenuItem(value: o, child: Text(o)))
-              .toList(),
-          onChanged: onChanged,
-          decoration: const InputDecoration(),
-        ),
-      ],
-    );
-  }
-}
-
-class _ToggleSetting extends StatelessWidget {
-  final String title, subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  const _ToggleSetting(this.title, this.subtitle, this.value, this.onChanged);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-      ),
-      child: Row(
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(subtitle, style: AppTextStyles.bodySmall),
-              ],
+          Text(
+            label,
+            style: AppTextStyles.label.copyWith(
+              color: AppColors.textMutedOf(context),
             ),
           ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: AppColors.primary,
+          const SizedBox(height: AppSpacing.xs),
+          SelectableText(
+            value,
+            maxLines: 3,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textPrimaryOf(context),
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
