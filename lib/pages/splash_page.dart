@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/constants/app_spacing.dart';
 import '../core/providers/providers.dart';
-import '../core/models/user_role.dart';
+import '../core/security/role_access.dart';
 
 class SplashPage extends ConsumerStatefulWidget {
   const SplashPage({super.key});
@@ -30,7 +30,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
     if (!mounted) return;
     final user = authState.value;
     if (user != null) {
-      context.go(user.role == UserRole.STUDENT ? '/parent' : '/admin');
+      context.go(RoleAccess.defaultRouteFor(user.role));
     } else {
       context.go('/login');
     }
