@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import logo from "figma:asset/06ec834f803405bdc67336243d2c3f6e0f882eba.png";
+import logo from "../../assets/06ec834f803405bdc67336243d2c3f6e0f882eba.png";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -49,9 +49,9 @@ export default function Layout({ children, userRole = "admin" }: LayoutProps) {
   const userInitials = userRole === "parent" ? "AB" : "AA";
 
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex min-h-[100dvh] bg-white">
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-border px-4 py-3">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={logo} alt="EduOps" className="w-8 h-8 object-contain" />
@@ -81,7 +81,7 @@ export default function Layout({ children, userRole = "admin" }: LayoutProps) {
       {/* Sidebar - Desktop and Mobile Drawer */}
       <div
         className={`
-          fixed lg:static inset-y-0 left-0 z-40 w-64 border-r border-border bg-white flex flex-col
+          fixed lg:static inset-y-0 left-0 z-40 w-[84vw] max-w-64 border-r border-border bg-white flex flex-col
           transform transition-transform duration-300 ease-in-out
           ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
@@ -145,7 +145,7 @@ export default function Layout({ children, userRole = "admin" }: LayoutProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden pt-14 lg:pt-0">
+      <div className="flex-1 flex flex-col overflow-hidden pt-[calc(56px+env(safe-area-inset-top))] lg:pt-0 min-w-0">
         {children}
       </div>
     </div>

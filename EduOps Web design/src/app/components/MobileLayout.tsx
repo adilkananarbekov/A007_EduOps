@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router";
 import { Home, Calendar, CreditCard, MessageSquare, Bell, User } from "lucide-react";
-import logo from "figma:asset/06ec834f803405bdc67336243d2c3f6e0f882eba.png";
+import logo from "../../assets/06ec834f803405bdc67336243d2c3f6e0f882eba.png";
 
 interface MobileLayoutProps {
   children: React.ReactNode;
@@ -19,10 +19,10 @@ export default function MobileLayout({ children, title = "Dashboard", showHeader
   const location = useLocation();
 
   return (
-    <div className="flex flex-col h-screen bg-white">
+    <div className="flex flex-col min-h-[100dvh] bg-white">
       {/* Top Bar */}
       {showHeader && (
-        <div className="sticky top-0 z-10 bg-white border-b border-border px-4 py-4">
+        <div className="sticky top-0 z-10 bg-white border-b border-border px-4 py-4 pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img src={logo} alt="Ala-Too University" className="w-8 h-8 object-contain" />
@@ -42,13 +42,13 @@ export default function MobileLayout({ children, title = "Dashboard", showHeader
       )}
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto pb-20">
+      <div className="flex-1 overflow-auto pb-[calc(88px+env(safe-area-inset-bottom))]">
         {children}
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border">
-        <nav className="flex items-center justify-around px-2 py-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <nav className="mx-auto flex w-full max-w-3xl items-center justify-around px-2 py-3">
           {bottomNavigation.map((item) => {
             const isActive = location.pathname === item.href;
             const Icon = item.icon;
