@@ -1,9 +1,9 @@
 // const token: string = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhM253QGdtYWlsLmNvbSIsImlhdCI6MTc3NTEwMDY1OCwiZXhwIjoxNzc1MTg3MDU4fQ.ZQkj6I10sSnVn9wGB5CVFQwypOYTvyHFJ5rDVPAhYEM5bc61BfVesDkPtK9Hvt1LBUsyuhhGT7VHdYfNoOGS0Q"    // admin
-const token: string = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhM253MkBnbWFpbC5jb20iLCJpYXQiOjE3NzUxMDIxNTcsImV4cCI6MTc3NTE4ODU1N30.7HrjsiakW3KXD-5v-VLCfpRFvr1gNIk8QBzGVje4IayRu63H-Sq2m8lsNlP5WiLAzGUFNYKLTFquGby3GRRDeQ"    // student
+const token: string = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhM253MkBnbWFpbC5jb20iLCJpYXQiOjE3NzU3Mjg3ODUsImV4cCI6MTc3NTgxNTE4NX0.t_g7fGwHGuIlO4A6WKr3bT7yj-SkkLWHb2dqaMlGB1QVrORKxhrFfhFVJ8Vsd4Rui4rsFEMukRxTw2rmQQ7rdw"    // student
 
 async function testFunc() {
-  const res = await fetch("http://136.116.64.6/api/announcements", {
-    method: "GET",
+  const res = await fetch("http://136.116.64.6/api/auth/forgot-password?email=a3nw2@gmail.com", {
+    method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,

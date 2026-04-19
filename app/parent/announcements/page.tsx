@@ -193,7 +193,13 @@ export default function MobileAnnouncements() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mb-2">{announcement.publishedAt}</p>
+                      <p className="text-xs text-muted-foreground mb-2">{new Date(announcement.publishedAt).toLocaleString("ru-RU", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}</p>
                       <p className="text-sm text-foreground leading-relaxed">{announcement.content}</p>
                     </div>
                   </div>

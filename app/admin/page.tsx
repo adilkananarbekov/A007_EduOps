@@ -1,7 +1,12 @@
+"use client";
+
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, TrendingUp, AlertCircle, UsersRound } from "lucide-react";
+import { Users, TrendingUp, AlertCircle, UsersRound, CreditCard } from "lucide-react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { set } from "react-hook-form";
 
 const metrics = [
   {
@@ -58,11 +63,106 @@ const recentActivity = [
   },
 ];
 
+type StudentFromList = {
+  accountNumber: string,
+  classGroupId: number,
+  classGroupName: string,
+  email: string,
+  id: number,
+  name: string,
+  studentNumber: string,
+  userId: number
+}
+
 export default function AdminDashboard() {
+
+  const router = useRouter();
+  const [studentsList, setStudentsList] = useState<StudentFromList[]>([]);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [totalDebt, setTotalDebt] = useState(0);
+  const [totalAttendance, setTotalAttendance] = useState(0);
+  const [attendanceLoading, setAttendanceLoading] = useState(true);
+  const [debtLoading, setDebtLoading] = useState(true);
+  const [studentsLoading, setStudentsLoading] = useState(true);
+
+  useEffect(() => {
+      
+      (async () => {
+        const userDataRaw = localStorage.getItem("userData");
+        if (!userDataRaw) {
+          // Redirect to login if no token is found
+          router.replace("/login");
+          return;
+        }
+        const userData = JSON.parse(userDataRaw);
+        const token = userData.token;
+  
+        const scheduleRes = await fetch("http://136.116.64.6/api/admin/students", {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+  
+        if (scheduleRes.ok) {
+          const studentsData = await scheduleRes.json();
+          setStudentsList(studentsData);
+          setTotalStudents(studentsData.length);
+          setStudentsLoading(false);
+
+          let debtSum = 0;
+          let attendancePresentSum = 0;
+          let attendanceTotSum = 0;
+
+          for (const student of studentsData) {
+            const debtRes = await fetch(`http://136.116.64.6/api/invoices/debt/${student.userId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            });
+            const attendanceRes = await fetch(`http://136.116.64.6/api/attendance/student/${student.userId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+            });
+      
+            if (debtRes.ok) {
+              const debtData = await debtRes.json();
+              debtSum += debtData.totalDebt;
+      
+              // console.log(debtData);
+              
+            }
+            if (attendanceRes.ok) {
+              const attendanceData = await attendanceRes.json();
+      
+              // console.log(attendanceData);
+              // console.log(attendanceData.length ? true : false);
+              console.log(attendanceData[0]?.status);
+              
+              if (attendanceData.length) {
+                attendanceTotSum += 1;
+                if (attendanceData[0].status === "PRESENT") {
+                  attendancePresentSum += 1;
+                }
+              }
+
+            }
+          }
+
+          const percentAttendance = attendanceTotSum ? Math.round((attendancePresentSum / attendanceTotSum) * 100) : 100;
+          setTotalAttendance(percentAttendance);
+          setTotalDebt(debtSum);
+
+          setAttendanceLoading(false);
+          setDebtLoading(false);
+
+          // console.log(studentsData);
+          
+        } else {
+          router.replace("/login");
+        }
+      })();
+  
+    }, []);
+  
   return (
     <Layout>
       {/* Header */}
-      <div className="border-b border-border bg-white">
+      {/* <div className="border-b border-border bg-white">
         <div className="px-4 sm:px-8 py-4">
           <Breadcrumb>
             <BreadcrumbList>
@@ -76,7 +176,7 @@ export default function AdminDashboard() {
             </BreadcrumbList>
           </Breadcrumb>
         </div>
-      </div>
+      </div> */}
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto p-4 sm:p-8 bg-white">
@@ -89,7 +189,68 @@ export default function AdminDashboard() {
 
           {/* Metrics Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {metrics.map((metric) => {
+            <Card key='Total Students' className="border-border">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+                  Total Students
+                </CardTitle>
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl sm:text-3xl font-semibold ${false ? 'text-primary' : 'text-foreground'}`}>
+                  {!studentsLoading ? totalStudents : "Loading..."}
+                </div>
+                <p className={`text-xs sm:text-sm mt-1 ${true ? 'text-muted-foreground' : 'text-primary'}`}>
+                  students
+                </p>
+                <br />
+              </CardContent>
+            </Card>
+            <Card key='Outstanding Debt' className="border-border">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+                  Outstanding Debt
+                </CardTitle>
+                {!debtLoading ? (totalDebt > 0 ? (
+                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+                ) : (
+                  <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+                )) : false}
+                {/* <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" /> */}
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl sm:text-3xl font-semibold ${totalDebt > 0 && !debtLoading ? 'text-primary' : 'text-foreground'}`}>
+                  {!debtLoading ? `${totalDebt} KGS` : "Loading..."}
+                </div>
+                <p className={`text-xs sm:text-sm mt-1 ${!(totalDebt > 0) || debtLoading ? 'text-muted-foreground' : 'text-primary'}`}>
+                  {!debtLoading ? (totalDebt > 0 ? 'Requires attention' : 'All clear') : 'Status'}
+                </p>
+                <br />
+              </CardContent>
+            </Card>
+            <Card key='Attendance' className="border-border">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+                  Attendance
+                </CardTitle>
+                {/* <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" /> */}
+                {!attendanceLoading ? (totalAttendance < 66 ? (
+                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+                ) : (
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+                )) : false}
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl sm:text-3xl font-semibold ${totalAttendance < 66 && !attendanceLoading ? 'text-primary' : 'text-foreground'}`}>
+                  {!attendanceLoading ? `${totalAttendance}%` : "Loading..."}
+                </div>
+                <p className={`text-xs sm:text-sm mt-1 ${!(totalAttendance < 66) || attendanceLoading ? 'text-muted-foreground' : 'text-primary'}`}>
+                  Present
+                </p>
+                <br />
+              </CardContent>
+            </Card>
+            {/* {metrics.map((metric) => {
               const Icon = metric.icon;
               return (
                 <Card key={metric.title} className="border-border">
@@ -109,11 +270,11 @@ export default function AdminDashboard() {
                   </CardContent>
                 </Card>
               );
-            })}
+            })} */}
           </div>
 
           {/* Recent Activity */}
-          <Card className="border-border">
+          {/* <Card className="border-border">
             <CardHeader>
               <CardTitle className="text-lg sm:text-xl">Recent Activity</CardTitle>
             </CardHeader>
@@ -133,7 +294,7 @@ export default function AdminDashboard() {
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
     </Layout>

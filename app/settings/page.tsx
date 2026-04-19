@@ -1,12 +1,23 @@
+"use client";
+
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save } from "lucide-react";
+import { LogOut, Save } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function Settings() {
+
+  const router = useRouter();
+
+  function SignOut() {
+    localStorage.removeItem("userData");
+    router.replace("/login");
+  }
+
   return (
     <Layout>
       <div className="border-b border-border bg-white px-8 py-6">
@@ -105,6 +116,20 @@ export default function Settings() {
                 <p className="text-sm text-muted-foreground">
                   Teachers can edit attendance within this time window after submission
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-primary bg-red-50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-foreground">Sign Out</h4>
+                  <p className="text-sm text-muted-foreground mt-1">Sign out from your account</p>
+                </div>
+                <Button onClick={SignOut} variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
               </div>
             </CardContent>
           </Card>

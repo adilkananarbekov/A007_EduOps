@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,18 +20,19 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { group } from "console";
 
-const studentData = {
-  id: "1",
-  name: "Alina Beknazarova",
-  phone: "+996 555 123 456",
-  email: "alina.b@example.com",
-  groups: ["English A1", "Math Advanced"],
-  status: "active",
-  debtAmount: 3200,
-};
+// const studentData = {
+//   id: "1",
+//   name: "Alina Beknazarova",
+//   phone: "+996 555 123 456",
+//   email: "alina.b@example.com",
+//   groups: ["English A1", "Math Advanced"],
+//   status: "active",
+//   debtAmount: 3200,
+// };
 
 const weekScheduleData = {
   Monday: [
@@ -133,9 +135,21 @@ const invoicesData = [
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const timeSlots = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
 
+type StudentFromList = {
+  accountNumber: string,
+  classGroupId: number,
+  classGroupName: string,
+  email: string,
+  id: number,
+  name: string,
+  studentNumber: string,
+  userId: number
+}
+
 export default function StudentProfile() {
   const { id } = useParams();
-  const navigate = useRouter();
+  const router = useRouter();
+  const [oneStudentData, setOneStudentData] = useState<StudentFromList | null>(null);
   const [expandedInvoice, setExpandedInvoice] = useState<number | null>(null);
 
   const getTimeSlotHeight = (duration: number) => {
@@ -152,13 +166,48 @@ export default function StudentProfile() {
     .filter((inv) => inv.status === "paid")
     .reduce((sum, inv) => sum + inv.amount, 0);
 
+
+  useEffect(() => {
+      
+      (async () => {
+        const userDataRaw = localStorage.getItem("userData");
+        if (!userDataRaw) {
+          // Redirect to login if no token is found
+          router.replace("/login");
+          return;
+        }
+        const userData = JSON.parse(userDataRaw);
+        const token = userData.token;
+  
+        const scheduleRes = await fetch("http://136.116.64.6/api/admin/students", {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+  
+        if (scheduleRes.ok) {
+          const studentsData = await scheduleRes.json();
+          const oneStudent = studentsData.find((student: StudentFromList) => student.id.toString() == id);
+          setOneStudentData(oneStudent);
+          // setOneStudentData(studentsData);
+  
+
+          // console.log(studentsData);
+          console.log(oneStudent);
+          // console.log(oneStudentData);
+          
+        } else {
+          router.replace("/login");
+        }
+      })();
+  
+    }, []);
+
   return (
     <Layout>
       {/* Header */}
       <header className="border-b border-border bg-white px-8 py-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate.push("/students")}>
+            <Button variant="ghost" size="sm" onClick={() => router.push("/students")}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Students
             </Button>
@@ -166,12 +215,12 @@ export default function StudentProfile() {
             <div className="flex items-center gap-4">
               <Avatar className="w-12 h-12">
                 <AvatarFallback className="bg-accent text-white text-lg">
-                  {studentData.name.split(" ").map(n => n[0]).join("")}
+                  {oneStudentData?.name.split(" ").map(n => n[0]).join("")}
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <h1 className="text-2xl font-semibold text-foreground">{studentData.name}</h1>
-                <div className="flex items-center gap-3 mt-1">
+              <div className="hidden md:block">
+                <h1 className="text-2xl font-semibold text-foreground">{oneStudentData?.name}</h1>
+                {/* <div className="flex items-center gap-3 mt-1">
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                     Active
                   </Badge>
@@ -180,7 +229,7 @@ export default function StudentProfile() {
                       Debt: {studentData.debtAmount.toLocaleString()} KGS
                     </Badge>
                   )}
-                </div>
+                </div> */}
               </div>
             </div>
           </div>
@@ -193,36 +242,47 @@ export default function StudentProfile() {
           {/* Contact Info Card */}
           <Card className="border-border">
             <CardHeader>
-              <CardTitle className="text-lg">Contact Information</CardTitle>
+              <CardTitle className="text-lg">Main Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-3 text-sm">
-                <Phone className="w-4 h-4 text-muted-foreground" />
-                <span className="text-foreground">{studentData.phone}</span>
+                <User className="w-4 h-4 text-muted-foreground" />
+                <span className="text-foreground">{oneStudentData?.name}</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Mail className="w-4 h-4 text-muted-foreground" />
-                <span className="text-foreground">{studentData.email}</span>
+                <span className="text-foreground">{oneStudentData?.email}</span>
               </div>
+              <br />
             </CardContent>
           </Card>
 
           {/* Groups Card */}
           <Card className="border-border">
             <CardHeader>
-              <CardTitle className="text-lg">Active Groups</CardTitle>
+              <CardTitle className="text-lg">Full Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
+              {
+                oneStudentData && Object.entries(oneStudentData).map(([key, value]) => (
+                  <div key={key} className="px-3 py-2 bg-accent/10 rounded-lg text-sm text-foreground">
+                    {key}: {value || "(empty)"}
+                  </div>
+                ))
+              }
+              <br />
+            </CardContent>
+            {/* <CardContent className="space-y-2">
               {studentData.groups.map((group, idx) => (
                 <div key={idx} className="px-3 py-2 bg-accent/10 rounded-lg text-sm font-medium text-foreground">
                   {group}
                 </div>
               ))}
-            </CardContent>
+            </CardContent> */}
           </Card>
 
           {/* Quick Stats Card */}
-          <Card className="border-border">
+          {/* <Card className="border-border">
             <CardHeader>
               <CardTitle className="text-lg">Quick Stats</CardTitle>
             </CardHeader>
@@ -236,18 +296,18 @@ export default function StudentProfile() {
                 <span className="text-lg font-bold text-foreground">4</span>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="schedule" className="space-y-6">
+        {/* <Tabs defaultValue="schedule" className="space-y-6">
           <TabsList className="bg-muted">
             <TabsTrigger value="schedule">Week Schedule</TabsTrigger>
             <TabsTrigger value="billing">Billing & Payments</TabsTrigger>
-          </TabsList>
+          </TabsList> */}
 
           {/* Schedule Tab */}
-          <TabsContent value="schedule" className="space-y-4">
+          {/* <TabsContent value="schedule" className="space-y-4">
             <Card className="border-border">
               <CardContent className="p-0">
                 <div className="grid grid-cols-8 border-b border-border">
@@ -333,10 +393,10 @@ export default function StudentProfile() {
                   ))}
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Legend */}
-            <div className="flex items-center gap-6">
+            {/* <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-accent/10 border border-accent"></div>
                 <span className="text-sm text-muted-foreground">Upcoming Session</span>
@@ -350,12 +410,12 @@ export default function StudentProfile() {
                 <span className="text-sm text-muted-foreground">Absent</span>
               </div>
             </div>
-          </TabsContent>
+          </TabsContent> */}
 
           {/* Billing Tab */}
-          <TabsContent value="billing" className="space-y-6">
+          {/* <TabsContent value="billing" className="space-y-6"> */}
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card className="border-border">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-2">
@@ -365,8 +425,8 @@ export default function StudentProfile() {
                   <p className="text-3xl font-bold text-foreground">{totalPaid.toLocaleString()}</p>
                   <p className="text-sm text-muted-foreground mt-1">KGS</p>
                 </CardContent>
-              </Card>
-              <Card className="border-2 border-primary bg-red-50">
+              </Card> */}
+              {/* <Card className="border-2 border-primary bg-red-50">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-2">
                     <CreditCard className="w-5 h-5 text-primary" />
@@ -375,11 +435,11 @@ export default function StudentProfile() {
                   <p className="text-3xl font-bold text-primary">{studentData.debtAmount.toLocaleString()}</p>
                   <p className="text-sm text-muted-foreground mt-1">KGS</p>
                 </CardContent>
-              </Card>
-            </div>
+              </Card> */}
+            {/* </div> */}
 
             {/* Invoices */}
-            <Card className="border-border">
+            {/* <Card className="border-border">
               <CardHeader>
                 <CardTitle>Payment History</CardTitle>
               </CardHeader>
@@ -452,10 +512,34 @@ export default function StudentProfile() {
                   </Card>
                 ))}
               </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+            </Card> */}
+          {/* </TabsContent> */}
+        {/* </Tabs> */}
       </main>
     </Layout>
   );
+  // {
+  // // const router = useRouter();
+  // // return (
+  // //   <div className="min-h-screen flex items-center justify-center bg-white p-4">
+  // //     <div className="text-center">
+  // //       <h1 className="text-6xl font-bold text-primary mb-4">404</h1>
+  // //       <h2 className="text-2xl font-semibold text-foreground mb-2">Page Not Found</h2>
+  // //       <p className="text-muted-foreground mb-6">
+  // //         The page you're looking for doesn't exist or has been moved.
+  // //       </p>
+  // //       <div className="flex flex-col sm:flex-row gap-3 justify-center">
+  // //         <Button onClick={() => router.back()} className="bg-primary hover:bg-primary/90">
+  // //           {"<-"} Back
+  // //         </Button>
+  // //         <Link href="/login">
+  // //           <Button variant="outline" className="border-accent text-accent hover:bg-accent/10">
+  // //             Go to Login page
+  // //           </Button>
+  // //         </Link>
+  // //       </div>
+  // //     </div>
+  // //   </div>
+  // // );
+  // }
 }

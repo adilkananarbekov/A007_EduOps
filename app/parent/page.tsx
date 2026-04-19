@@ -250,12 +250,12 @@ export default function ParentDashboard() {
                   <p className="text-xs sm:text-sm text-muted-foreground mt-1">Classes/Week</p>
                 </CardContent>
               </Card>
-              <Card className="border-border">
+              {/* <Card className="border-border">
                 <CardContent className="p-3 sm:p-4 text-center">
                   <p className="text-xl sm:text-2xl font-bold text-foreground">???????????</p>
                   <p className="text-xs sm:text-sm text-muted-foreground mt-1">Active Groups</p>
                 </CardContent>
-              </Card>
+              </Card> */}
               </>
             )}
           </div>

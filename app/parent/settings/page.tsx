@@ -65,14 +65,14 @@ export default function ParentSettings() {
                   <Label htmlFor="email">Email Address</Label>
                   <Input id="email" type="email" defaultValue={userData.email} />
                 </div>
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" defaultValue="+996 555 123 456?!?!?!?!?!?!?" />
+                  <Input id="phone" type="tel" defaultValue="+996 555 123 456" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="parentPhone">Parent Phone</Label>
-                  <Input id="parentPhone" type="tel" defaultValue="+996 555 654 321!?!?!?!??!?!" />
-                </div>
+                  <Input id="parentPhone" type="tel" defaultValue="+996 555 654 321" />
+                </div> */}
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-border">
@@ -83,7 +83,7 @@ export default function ParentSettings() {
           </Card>
 
           {/* Security Section */}
-          <Card className="border-border">
+          {/* <Card className="border-border">
             <CardHeader>
               <CardTitle>Security</CardTitle>
             </CardHeader>
@@ -109,7 +109,7 @@ export default function ParentSettings() {
                 </Button>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Notifications Section */}
           <Card className="border-border">

@@ -88,7 +88,7 @@ export default function Login() {
           </form>
 
           {/* Demo Navigation */}
-          <div className="mt-8 pt-6 border-t border-border">
+          {/* <div className="mt-8 pt-6 border-t border-border">
             <p className="text-xs text-muted-foreground text-center mb-3">Quick Demo Navigation:</p>
             <div className="flex flex-wrap gap-2 justify-center">
               <Link href="/admin">
@@ -104,7 +104,7 @@ export default function Login() {
                 <Button variant="outline" size="sm" className="text-xs border-accent text-accent">Parent/Student View</Button>
               </Link>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

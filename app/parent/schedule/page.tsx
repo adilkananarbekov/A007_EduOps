@@ -254,11 +254,11 @@ export default function MobileSchedule() {
           const scheduleData = await scheduleRes.json();
           setSessionsData(scheduleData);
 
-          const fS = scheduleData.filter((session: Session) => {
-            // console.log(session.dayOfWeek);
-            return session.dayOfWeek === fullDays[selectedDay].toUpperCase();
-          });
-          setFilteredSessions(fS);
+          // const fS = scheduleData.filter((session: Session) => {
+          //   // console.log(session.dayOfWeek);
+          //   return session.dayOfWeek === fullDays[selectedDay].toUpperCase();
+          // });
+          // setFilteredSessions(fS);
 
           const sBD = fullDays.map((day: string) => ({
             day,
@@ -274,6 +274,13 @@ export default function MobileSchedule() {
         }
       })();
   
+    }, []);
+    useEffect(() => {
+      const fS = sessionsData.filter((session: Session) => {
+        // console.log(session.dayOfWeek);
+        return session.dayOfWeek === fullDays[selectedDay].toUpperCase();
+      });
+      setFilteredSessions(fS);
     }, [selectedDay]);
   
 
@@ -434,9 +441,10 @@ export default function MobileSchedule() {
           {/* Week View */}
           {viewMode === "week" && (
             <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
-              <div className="grid grid-cols-7 gap-2 sm:gap-4 min-w-175 sm:min-w-225 lg:min-w-300">
+              {/* <div className="grid grid-cols-7 gap-2 sm:gap-4 min-w-175 sm:min-w-225 lg:min-w-300"> */}
+              <div className="flex gap-2 sm:gap-4 min-w-175 sm:min-w-225 lg:min-w-300">
                 {sessionsByDay.map((dayData, index) => (
-                  <div key={index} className="flex flex-col">
+                  <div key={index} className="flex flex-col flex-1">
                     {/* Day Header */}
                     <div className="bg-primary text-white p-2 sm:p-3 rounded-t-lg text-center">
                       <div className="text-xs sm:text-sm font-semibold">{daysOfWeek[index]}</div>
