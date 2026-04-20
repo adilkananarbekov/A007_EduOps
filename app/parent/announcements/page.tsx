@@ -97,7 +97,7 @@ export default function MobileAnnouncements() {
       const userData = JSON.parse(userDataRaw);
       const token = userData.token;
 
-      const announcementsRes = await fetch("http://136.116.64.6/api/announcements", {
+      const announcementsRes = await fetch("http://localhost:8080/api/announcements", {
           headers: { Authorization: `Bearer ${token}` },
       });
 

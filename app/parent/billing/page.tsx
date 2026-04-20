@@ -66,7 +66,7 @@ export default function MobileBilling() {
         const userData = JSON.parse(userDataRaw);
         const token = userData.token;
   
-        const debtRes = await fetch(`http://136.116.64.6/api/invoices/debt/${userData.userId}`, {
+        const debtRes = await fetch(`http://localhost:8080/api/invoices/debt/${userData.userId}`, {
             headers: { Authorization: `Bearer ${token}` },
         });
   

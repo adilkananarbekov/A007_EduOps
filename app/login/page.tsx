@@ -15,7 +15,7 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     // Mock login - redirect to admin dashboard
-    const res = await fetch("http://136.116.64.6/api/auth/login", {
+    const res = await fetch("http://localhost:8080/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),

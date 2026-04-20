@@ -27,7 +27,7 @@ export default function Home() {
     const role = userData.role;
     if (role === "ADMIN") {
       (async () => {
-        const res = await fetch("http://136.116.64.6/api/admin/users", {
+        const res = await fetch("http://localhost:8080/api/admin/users", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",

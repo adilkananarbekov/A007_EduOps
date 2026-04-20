@@ -97,7 +97,7 @@ export default function AdminDashboard() {
         const userData = JSON.parse(userDataRaw);
         const token = userData.token;
   
-        const scheduleRes = await fetch("http://136.116.64.6/api/admin/students", {
+        const scheduleRes = await fetch("http://localhost:8080/api/admin/students", {
             headers: { Authorization: `Bearer ${token}` },
         });
   
@@ -112,10 +112,10 @@ export default function AdminDashboard() {
           let attendanceTotSum = 0;
 
           for (const student of studentsData) {
-            const debtRes = await fetch(`http://136.116.64.6/api/invoices/debt/${student.userId}`, {
+            const debtRes = await fetch(`http://localhost:8080/api/invoices/debt/${student.userId}`, {
             headers: { Authorization: `Bearer ${token}` },
             });
-            const attendanceRes = await fetch(`http://136.116.64.6/api/attendance/student/${student.userId}`, {
+            const attendanceRes = await fetch(`http://localhost:8080/api/attendance/student/${student.userId}`, {
             headers: { Authorization: `Bearer ${token}` },
             });
       

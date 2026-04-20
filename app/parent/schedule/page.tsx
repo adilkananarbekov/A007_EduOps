@@ -246,7 +246,7 @@ export default function MobileSchedule() {
         const userData = JSON.parse(userDataRaw);
         const token = userData.token;
   
-        const scheduleRes = await fetch("http://136.116.64.6/api/schedule/week", {
+        const scheduleRes = await fetch("http://localhost:8080/api/schedule/week", {
             headers: { Authorization: `Bearer ${token}` },
         });
   

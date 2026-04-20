@@ -83,13 +83,13 @@ export default function ParentDashboard() {
       setStudentName(userData.firstName);
 
       const [scheduleRes, attendanceRes, debtRes] = await Promise.all([
-        fetch("http://136.116.64.6/api/schedule/week", {
+        fetch("http://localhost:8080/api/schedule/week", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch("http://136.116.64.6/api/attendance/stats", {
+        fetch("http://localhost:8080/api/attendance/stats", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`http://136.116.64.6/api/invoices/debt/${userData.userId}`, {
+        fetch(`http://localhost:8080/api/invoices/debt/${userData.userId}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
       ])
