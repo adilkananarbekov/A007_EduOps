@@ -22,9 +22,9 @@ export default function AdminLayout({
     const [ isOpen, setIsOpen ] = useState(false);
     return (
         <>
-            <nav className={`fixed flex flex-col text-3xl w-100 bg-white h-screen text-black top-0 p-6 gap-3 duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <nav className={`fixed flex flex-col text-3xl w-100 bg-white h-screen text-black top-0 p-6 gap-3 border-r-2 duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className={`mb-10 w-100 duration-300 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                    <div className="w-15 h-15 group flex flex-col gap-3" onClick={() => setIsOpen(!isOpen)}>
+                    <div className="w-7 h-7 md:w-15 md:h-15 group flex flex-col gap-3" onClick={() => setIsOpen(!isOpen)}>
                         <div className="w-15 h-3 bg-blue-500 group-hover:bg-blue-400 rounded-full"></div>
                         <div className="w-15 h-3 bg-blue-500 group-hover:bg-blue-400 rounded-full"></div>
                         <div className="w-15 h-3 bg-blue-500 group-hover:bg-blue-400 rounded-full"></div>
