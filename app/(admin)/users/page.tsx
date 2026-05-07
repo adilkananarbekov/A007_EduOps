@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+const api = process.env.NEXT_PUBLIC_API_URL;
+
 export default function UsersPage() {
     const [users, setUsers] = useState([]);
 
@@ -10,11 +12,11 @@ export default function UsersPage() {
             const tokensRaw = localStorage.getItem("tokens");
             const tokens = tokensRaw ? JSON.parse(tokensRaw) : null;
             // const res = await fetch("/api/v1/admin/users", {
-            const res = await fetch("http://localhost:8080/api/v1/admin/users", {
+            const res = await fetch(`${api}/users`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `${tokens?.token_type} ${tokens?.access_token}`
+                    "Authorization": `${tokens?.tokenType} ${tokens?.accessToken}`
                 }
             });
             const usersData = await res.json();
@@ -24,9 +26,9 @@ export default function UsersPage() {
     }, []);
 
     return (
-        <div className="w-full min-h-screen bg-blue-900 flex flex-col items-center justify-start gap-6 text-1xl md:py-8 py-32">
+        <div className="w-full min-h-screen bg-blue-900 px-4 md:px-32 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 place-items-center gap-6 text-1xl md:py-8 py-32">
             {users.length > 0 ? users?.map((user: any) => (
-                <div key={user.id} className="bg-white p-4 flex flex-col gap-1 rounded-lg shadow-md lg:w-[36%] md:w-[50%] sm:w-[70%] w-[85%] text-black">
+                <div key={user.id} className="bg-white p-4 flex flex-col gap-1 rounded-lg shadow-md max-w-md w-full text-black">
                     <div className="border-amber-300 border-2 rounded-lg p-2 flex sm:justify-between justify-start items-center"> 
                         <span>ID: </span>
                         <span>{user.id}</span>
@@ -37,11 +39,15 @@ export default function UsersPage() {
                     </div>
                     <div className="border-amber-300 border-2 rounded-lg p-2 flex flex-col sm:flex-row justify-between sm:items-center items-start"> 
                         <span>Name: </span>
-                        <span>{user.full_name}</span>
+                        <span>{user.firstName} {user.lastName}</span>
                     </div>
                     <div className="border-amber-300 border-2 rounded-lg p-2 flex flex-col sm:flex-row justify-between sm:items-center items-start"> 
                         <span>Role: </span>
                         <span>{user.role}</span>
+                    </div>
+                    <div className="border-amber-300 border-2 rounded-lg p-2 flex flex-col sm:flex-row justify-between sm:items-center items-start"> 
+                        <span>Class: </span>
+                        <span>{user.className}</span>
                     </div>
                 </div>
             )) : (

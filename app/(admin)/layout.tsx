@@ -31,7 +31,7 @@ export default function AdminLayout({
                     </div>
                 </div>
                 {navElems.map((elem) => (
-                    <Link key={elem.href} href={elem.href} className="border-3 border-amber-300 p-3 rounded-2xl hover:bg-amber-300 hover:text-white duration-75">
+                    <Link key={elem.href} href={elem.href} onClick={() => setIsOpen(!isOpen)} className="border-3 border-amber-300 p-3 rounded-2xl hover:bg-amber-300 hover:text-white duration-75">
                         {elem.title}
                     </Link>
                 ))}

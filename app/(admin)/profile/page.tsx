@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+const api = process.env.NEXT_PUBLIC_API_URL;
+
 export default function UsersPage() {
     const [ me, setMe ] = useState(null);
 
@@ -10,11 +12,11 @@ export default function UsersPage() {
             const tokensRaw = localStorage.getItem("tokens");
             const tokens = tokensRaw ? JSON.parse(tokensRaw) : null;
             // const res = await fetch("/api/v1/admin/users", {
-            const res = await fetch("http://localhost:8080/api/v1/users/me", {
+            const res = await fetch(`${api}/auth/me`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `${tokens?.token_type} ${tokens?.access_token}`
+                    "Authorization": `${tokens?.tokenType} ${tokens?.accessToken}`
                 }
             });
             const myData = await res.json();

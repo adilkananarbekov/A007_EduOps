@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+const api = process.env.NEXT_PUBLIC_API_URL;
+
 export default function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -12,7 +14,7 @@ export default function LoginForm() {
     e.preventDefault();
     // Mock login - redirect to admin dashboard
     // const res = await fetch("/api/v1/auth/login", {
-    const res = await fetch("http://localhost:8080/api/v1/auth/login", {
+    const res = await fetch(`${api}/auth/login`, {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",

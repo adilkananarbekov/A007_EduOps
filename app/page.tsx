@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+const api = process.env.NEXT_PUBLIC_API_URL;
+
 export default function Home() {
   const router = useRouter();
   useEffect(() => {
@@ -14,20 +16,22 @@ export default function Home() {
         }
         const tokens = tokensRaw ? JSON.parse(tokensRaw) : null;
         // const res = await fetch("/api/v1/users/me", {
-        const res = await fetch("http://localhost:8080/api/v1/users/me", {
+        const res = await fetch(`${api}/auth/me`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `${tokens?.token_type} ${tokens?.access_token}`
+                "Authorization": `${tokens?.tokenType} ${tokens?.accessToken}`
             }
         });
         const meData = await res.json();
         console.log(meData);
         if (res.ok) {
-          if (meData.role === "ROLE_ADMIN") {
+          if (meData.role === "manager") {
             router.push("/users");
             return;
           }
+        } else {
+          router.push("/login");
         }
     })()
     // router.push("/login");

@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
   //     ],
   //   };
   // },
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "https://adilkan.com/api/eduprog/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
