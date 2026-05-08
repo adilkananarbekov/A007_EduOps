@@ -1,77 +1,74 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-const api = process.env.NEXT_PUBLIC_API_URL;
+import { useState } from "react";
+import { ApiError, login } from "@/lib/api";
+import { storeTokens } from "@/lib/auth";
 
 export default function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Mock login - redirect to admin dashboard
-    // const res = await fetch("/api/v1/auth/login", {
-    const res = await fetch(`${api}/auth/login`, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    });
-    
-    if (!res.ok) {
-      console.error(res.status);
-      return;
+  async function submitLogin(nextEmail = email, nextPassword = password) {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const tokens = await login(nextEmail.trim(), nextPassword);
+      storeTokens(tokens);
+      router.replace("/dashboard");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Could not reach EduOps. Please try again later.");
+      }
+    } finally {
+      setIsLoading(false);
     }
+  }
 
-    const data = await res.json();
-    // localStorage.setItem("userData", JSON.stringify(data));
-    localStorage.setItem("tokens", JSON.stringify(data));
-    // localStorage.setItem("role", data.role);
-    // console.log(data);
-    router.push("/");
-  };
+  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitLogin();
+  }
 
   return (
-    <form onSubmit={handleLogin} className="space-y-6">
-        <div className="space-y-2">
-            <div>Email</div>
-            <input
-            id="email"
-            type="email"
-            placeholder="user@gmail.com"
-            value={email}
-            onChange={(e: any) => setEmail(e.target.value)}
-            className="border-border w-full"
-            required
-            />
-        </div>
+    <form onSubmit={handleLogin} className="login-form">
+      <label className="field">
+        <span>Email</span>
+        <input
+          id="email"
+          type="email"
+          placeholder="name@eduops.kg"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          autoComplete="username"
+          required
+        />
+      </label>
 
-        <div className="space-y-2">
-            <div>Password</div>
-            <input
-            id="password"
-            type="password"
-            placeholder="Enter your password"
-            value={password}
-            onChange={(e: any) => setPassword(e.target.value)}
-            className="border-border w-full"
-            required
-            />
-        </div>
+      <label className="field">
+        <span>Password</span>
+        <input
+          id="password"
+          type="password"
+          placeholder="Enter password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          autoComplete="current-password"
+          required
+        />
+      </label>
 
-        <button type="submit" className="w-full bg-blue-500 hover:bg-blue-400">
-            Log In
-        </button>
+      {error ? <div className="form-error">{error}</div> : null}
 
-        <div className="text-center">
-            <a href="#" className="text-sm text-muted-foreground hover:text-foreground">
-            Forgot Password?
-            </a>
-        </div>
+      <button type="submit" className="primary-action" disabled={isLoading}>
+        {isLoading ? "Signing in..." : "Enter workspace"}
+      </button>
     </form>
   );
 }
