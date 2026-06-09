@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../widgets/app_badge.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/motion_icon.dart';
 
 class ParentDashboardPage extends ConsumerStatefulWidget {
   const ParentDashboardPage({super.key});
@@ -156,6 +157,11 @@ class _ParentDashboardPageState extends ConsumerState<ParentDashboardPage> {
                       label: const Text('Open records'),
                     ),
                     OutlinedButton.icon(
+                      onPressed: () => context.push('/parent/learning'),
+                      icon: const Icon(Icons.menu_book_outlined, size: 16),
+                      label: const Text('Open learning'),
+                    ),
+                    OutlinedButton.icon(
                       onPressed: () => context.push('/parent/announcements'),
                       icon: const Icon(Icons.campaign_outlined, size: 16),
                       label: const Text('Open updates'),
@@ -169,12 +175,13 @@ class _ParentDashboardPageState extends ConsumerState<ParentDashboardPage> {
           LayoutBuilder(
             builder: (context, constraints) {
               final cols = constraints.maxWidth >= 1320
-                  ? 4
+                  ? 5
                   : constraints.maxWidth >= 760
                   ? 2
                   : 1;
               final cards = [
                 _FamilyActionCard(
+                  motionAsset: MotionAssets.calendar,
                   icon: Icons.calendar_today_outlined,
                   label: 'Schedule',
                   description: 'View classes, rooms, and times quickly.',
@@ -182,6 +189,15 @@ class _ParentDashboardPageState extends ConsumerState<ParentDashboardPage> {
                   onTap: () => context.push('/parent/schedule'),
                 ),
                 _FamilyActionCard(
+                  motionAsset: MotionAssets.activity,
+                  icon: Icons.menu_book_outlined,
+                  label: 'Learning',
+                  description: 'Open lessons, assignments, tests, and weights.',
+                  color: primary,
+                  onTap: () => context.push('/parent/learning'),
+                ),
+                _FamilyActionCard(
+                  motionAsset: MotionAssets.checkmark,
                   icon: Icons.school_outlined,
                   label: 'Records',
                   description: 'See attendance, marks, and teacher updates.',
@@ -189,6 +205,7 @@ class _ParentDashboardPageState extends ConsumerState<ParentDashboardPage> {
                   onTap: () => context.push('/parent/records'),
                 ),
                 _FamilyActionCard(
+                  motionAsset: MotionAssets.notification,
                   icon: Icons.campaign_outlined,
                   label: 'Updates',
                   description: 'Read family announcements and reminders.',
@@ -196,6 +213,7 @@ class _ParentDashboardPageState extends ConsumerState<ParentDashboardPage> {
                   onTap: () => context.push('/parent/announcements'),
                 ),
                 _FamilyActionCard(
+                  motionAsset: MotionAssets.settings,
                   icon: Icons.settings_outlined,
                   label: 'Settings',
                   description: 'Manage profile, language, and notifications.',
@@ -213,6 +231,8 @@ class _ParentDashboardPageState extends ConsumerState<ParentDashboardPage> {
                       ? 2.8
                       : cols == 2
                       ? 1.9
+                      : cols >= 5
+                      ? 1.08
                       : 1.12,
                   crossAxisSpacing: AppSpacing.md,
                   mainAxisSpacing: AppSpacing.md,
@@ -324,6 +344,7 @@ class _SummaryChip extends StatelessWidget {
 
 class _FamilyActionCard extends StatelessWidget {
   final IconData icon;
+  final String? motionAsset;
   final String label;
   final String description;
   final Color color;
@@ -331,6 +352,7 @@ class _FamilyActionCard extends StatelessWidget {
 
   const _FamilyActionCard({
     required this.icon,
+    this.motionAsset,
     required this.label,
     required this.description,
     required this.color,
@@ -353,7 +375,9 @@ class _FamilyActionCard extends StatelessWidget {
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
-            child: Icon(icon, color: color),
+            child: motionAsset == null
+                ? Icon(icon, color: color)
+                : MotionIcon(asset: motionAsset!, size: 38),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(

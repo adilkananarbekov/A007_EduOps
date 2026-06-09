@@ -18,6 +18,7 @@ import '../../pages/parent/parent_records_page.dart';
 import '../../pages/parent/mobile_schedule_page.dart';
 import '../../pages/parent/announcements_page.dart';
 import '../../pages/parent/parent_settings_page.dart';
+import '../../pages/learning/learning_page.dart';
 import '../../pages/not_found_page.dart';
 import '../../pages/splash_page.dart';
 import '../providers/providers.dart';
@@ -113,12 +114,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin/attendance/:groupId',
-            builder: (context, state) =>
-                AttendanceOverviewPage(groupId: state.pathParameters['groupId']),
+            builder: (context, state) => AttendanceOverviewPage(
+              groupId: state.pathParameters['groupId'],
+            ),
           ),
           GoRoute(
             path: '/admin/reports',
             builder: (context, state) => const ReportsPage(),
+          ),
+          GoRoute(
+            path: '/admin/learning',
+            builder: (context, state) => const LearningPage(staffMode: true),
           ),
           GoRoute(
             path: '/admin/settings',
@@ -145,6 +151,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/parent/records',
             builder: (context, state) => const ParentRecordsPage(),
+          ),
+          GoRoute(
+            path: '/parent/learning',
+            builder: (context, state) => const LearningPage(),
           ),
           GoRoute(
             path: '/parent/announcements',

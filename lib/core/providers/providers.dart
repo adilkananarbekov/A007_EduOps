@@ -8,6 +8,7 @@ import '../services/attendance_service.dart';
 import '../services/grade_service.dart';
 import '../services/schedule_service.dart';
 import '../services/announcement_service.dart';
+import '../services/learning_service.dart';
 import '../models/auth_response.dart';
 import 'auth_notifier.dart';
 import 'theme_mode_notifier.dart';
@@ -51,6 +52,10 @@ final scheduleServiceProvider = Provider<ScheduleService>((ref) {
 
 final announcementServiceProvider = Provider<AnnouncementService>((ref) {
   return AnnouncementService(apiClient: ref.watch(apiClientProvider));
+});
+
+final learningServiceProvider = Provider<LearningService>((ref) {
+  return LearningService(apiClient: ref.watch(apiClientProvider));
 });
 
 // Auth state management

@@ -4,11 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../core/api/api_exception.dart';
+import '../core/config/app_runtime_config.dart';
 import '../core/constants/app_spacing.dart';
 import '../core/providers/providers.dart';
 import '../core/security/role_access.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../widgets/demo_mode_banner.dart';
+import '../widgets/motion_icon.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -193,6 +196,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
+                              if (AppRuntimeConfig.isTestMode) ...[
+                                const DemoModeBanner(showApiHost: true),
+                                const SizedBox(height: AppSpacing.md),
+                              ],
                               Text(
                                 'Sign in',
                                 style: AppTextStyles.heading2.copyWith(
@@ -223,7 +230,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                   ).requestFocus(_passwordFocusNode);
                                 },
                                 decoration: InputDecoration(
-                                  hintText: 'admin@eduops.kg',
+                                  hintText: 'manager@eduops.kg',
                                   prefixIcon: Icon(
                                     Icons.alternate_email_rounded,
                                     size: 18,
@@ -309,9 +316,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(
-                                      Icons.verified_user_outlined,
-                                      color: primary,
+                                    Container(
+                                      width: 42,
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surfaceOf(context),
+                                        borderRadius: BorderRadius.circular(
+                                          AppSpacing.radiusMd,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        Icons.verified_user_outlined,
+                                        color: primary,
+                                      ),
                                     ),
                                     const SizedBox(width: AppSpacing.sm),
                                     Expanded(
@@ -325,47 +342,49 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: AppSpacing.lg),
-                              Text(
-                                'Quick access',
-                                style: AppTextStyles.label.copyWith(
-                                  color: textPrimary,
+                              if (AppRuntimeConfig.showDemoTools) ...[
+                                const SizedBox(height: AppSpacing.lg),
+                                Text(
+                                  'Quick access',
+                                  style: AppTextStyles.label.copyWith(
+                                    color: textPrimary,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              Wrap(
-                                spacing: AppSpacing.sm,
-                                runSpacing: AppSpacing.sm,
-                                children: [
-                                  _QuickLoginButton(
-                                    label: 'Admin',
-                                    icon: Icons.admin_panel_settings_outlined,
-                                    color: primary,
-                                    onTap: () => _quickLogin(
-                                      'admin@edupage.com',
-                                      'admin123',
+                                const SizedBox(height: AppSpacing.sm),
+                                Wrap(
+                                  spacing: AppSpacing.sm,
+                                  runSpacing: AppSpacing.sm,
+                                  children: [
+                                    _QuickLoginButton(
+                                      label: 'Admin',
+                                      icon: Icons.admin_panel_settings_outlined,
+                                      color: primary,
+                                      onTap: () => _quickLogin(
+                                        'manager@eduops.kg',
+                                        '12345678',
+                                      ),
                                     ),
-                                  ),
-                                  _QuickLoginButton(
-                                    label: 'Teacher',
-                                    icon: Icons.school_outlined,
-                                    color: primaryStrong,
-                                    onTap: () => _quickLogin(
-                                      'teacher@edupage.com',
-                                      'teacher123',
+                                    _QuickLoginButton(
+                                      label: 'Teacher',
+                                      icon: Icons.school_outlined,
+                                      color: primaryStrong,
+                                      onTap: () => _quickLogin(
+                                        'teacher1@eduops.kg',
+                                        '12345678',
+                                      ),
                                     ),
-                                  ),
-                                  _QuickLoginButton(
-                                    label: 'Student',
-                                    icon: Icons.person_outline,
-                                    color: accent,
-                                    onTap: () => _quickLogin(
-                                      'student1@edupage.com',
-                                      'student123',
+                                    _QuickLoginButton(
+                                      label: 'Student',
+                                      icon: Icons.person_outline,
+                                      color: accent,
+                                      onTap: () => _quickLogin(
+                                        'student1@eduops.kg',
+                                        '12345678',
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -457,6 +476,10 @@ class _BrandPanel extends StatelessWidget {
             'EduOps',
             style: AppTextStyles.heading1.copyWith(color: textPrimary),
           ),
+          if (AppRuntimeConfig.isTestMode) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const DemoModeBanner(),
+          ],
           const SizedBox(height: AppSpacing.sm),
           Text(
             'School operations, redesigned for clarity and speed.',
@@ -507,6 +530,7 @@ class _BrandPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _PreviewRow(
+                  motionAsset: MotionAssets.checkmark,
                   icon: Icons.fact_check_outlined,
                   title: 'Attendance workflow',
                   meta: 'Close daily rosters from one place',
@@ -514,6 +538,7 @@ class _BrandPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _PreviewRow(
+                  motionAsset: MotionAssets.userPlus,
                   icon: Icons.school_outlined,
                   title: 'Student records',
                   meta: 'Open marks, groups, and profiles quickly',
@@ -521,6 +546,7 @@ class _BrandPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _PreviewRow(
+                  motionAsset: MotionAssets.notification,
                   icon: Icons.campaign_outlined,
                   title: 'Family updates',
                   meta: 'Share schedule changes and announcements',
@@ -544,12 +570,14 @@ class _BrandPanel extends StatelessWidget {
 
 class _PreviewRow extends StatelessWidget {
   final IconData icon;
+  final String? motionAsset;
   final String title;
   final String meta;
   final Color color;
 
   const _PreviewRow({
     required this.icon,
+    this.motionAsset,
     required this.title,
     required this.meta,
     required this.color,
@@ -573,7 +601,9 @@ class _PreviewRow extends StatelessWidget {
               color: AppColors.surfaceOf(context),
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
-            child: Icon(icon, color: color),
+            child: motionAsset == null
+                ? Icon(icon, color: color)
+                : MotionIcon(asset: motionAsset!, size: 34),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(

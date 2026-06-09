@@ -1,3 +1,5 @@
+import '../utils/remote_id_registry.dart';
+
 /// Announcement model
 class Announcement {
   final int id;
@@ -23,18 +25,33 @@ class Announcement {
   });
 
   factory Announcement.fromJson(Map<String, dynamic> json) {
-    int? asInt(dynamic value) => value == null ? null : (value as num).toInt();
+    int? asInt(dynamic value, {String namespace = 'default'}) {
+      if (value == null) {
+        return null;
+      }
+      return RemoteIdRegistry.localId(value, namespace: namespace);
+    }
 
     final targetGroupId =
-        asInt(json['classGroupId']) ?? asInt(json['targetStudentGroupId']);
+        asInt(json['classGroupId'], namespace: 'group') ??
+        asInt(json['targetStudentGroupId'], namespace: 'group') ??
+        _classGroupIdFromName(json['className']);
 
     return Announcement(
-      id: asInt(json['id']) ?? 0,
+      id: asInt(json['id'], namespace: 'notification') ?? 0,
       title: json['title'] as String,
-      content: json['content'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      authorId: asInt(json['authorId']) ?? 0,
-      authorName: json['authorName'] as String?,
+      content:
+          json['content'] as String? ??
+          json['body'] as String? ??
+          json['description'] as String? ??
+          '',
+      createdAt: DateTime.parse(
+        json['createdAt'] as String? ??
+            json['created_at'] as String? ??
+            DateTime.now().toIso8601String(),
+      ),
+      authorId: asInt(json['authorId'], namespace: 'user') ?? 0,
+      authorName: json['authorName'] as String? ?? json['category'] as String?,
       classGroupId: targetGroupId,
       classGroupName:
           json['classGroupName'] as String? ??
@@ -59,5 +76,15 @@ class Announcement {
       'classGroupName': classGroupName,
       'isGlobal': isGlobal,
     };
+  }
+
+  static int? _classGroupIdFromName(dynamic value) {
+    final className = value?.toString().trim();
+    if (className == null || className.isEmpty) {
+      return null;
+    }
+    final id = RemoteIdRegistry.localId(className, namespace: 'group_name');
+    RemoteIdRegistry.registerGroupName(id, className);
+    return id;
   }
 }

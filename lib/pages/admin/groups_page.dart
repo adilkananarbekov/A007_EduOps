@@ -318,11 +318,7 @@ class _GroupCard extends StatelessWidget {
 
               final footerMeta = Row(
                 children: [
-                  const Icon(
-                    Icons.people_outline,
-                    size: 14,
-                    color: null,
-                  ),
+                  const Icon(Icons.people_outline, size: 14, color: null),
                   const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: Text(
@@ -350,11 +346,7 @@ class _GroupCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.xs),
-                  const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 14,
-                    color: null,
-                  ),
+                  const Icon(Icons.arrow_forward_ios, size: 14, color: null),
                 ],
               );
 
@@ -382,9 +374,7 @@ class _GroupCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     _buildMeta(group),
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: textMuted,
-                    ),
+                    style: AppTextStyles.bodyMedium.copyWith(color: textMuted),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),

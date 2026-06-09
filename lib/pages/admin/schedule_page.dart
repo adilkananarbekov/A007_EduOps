@@ -198,12 +198,10 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
     final adminService = ref.read(adminServiceProvider);
 
     try {
-      final groups = await adminService
-          .getClassGroups()
-          .timeout(
-            const Duration(seconds: 2),
-            onTimeout: () => <ClassGroup>[],
-          );
+      final groups = await adminService.getClassGroups().timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => <ClassGroup>[],
+      );
       final mergedGroups = _mergeGroups(
         groups,
         _deriveGroupsFromSchedules(weeklySchedules),
@@ -372,14 +370,13 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
                                   value: _selectedGroup,
                                   items: _groups
                                       .map(
-                                        (group) =>
-                                            DropdownMenuItem<ClassGroup>(
-                                              value: group,
-                                              child: Text(
-                                                group.name,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
+                                        (group) => DropdownMenuItem<ClassGroup>(
+                                          value: group,
+                                          child: Text(
+                                            group.name,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
                                       )
                                       .toList(),
                                   onChanged: _selectGroup,

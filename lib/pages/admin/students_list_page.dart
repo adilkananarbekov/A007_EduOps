@@ -454,11 +454,7 @@ class _StudentsListPageState extends ConsumerState<StudentsListPage> {
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   hintText: 'Search students…',
-                  prefixIcon: Icon(
-                    Icons.search,
-                    size: 18,
-                    color: textMuted,
-                  ),
+                  prefixIcon: Icon(Icons.search, size: 18, color: textMuted),
                   isDense: true,
                 ),
               );
@@ -775,9 +771,7 @@ class _MobileStudentList extends StatelessWidget {
                     ),
                     Text(
                       s.classGroupName ?? 'No Group',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: textMuted,
-                      ),
+                      style: AppTextStyles.bodySmall.copyWith(color: textMuted),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -824,19 +818,13 @@ class _StudentsScopeNotice extends StatelessWidget {
         children: [
           Padding(
             padding: EdgeInsets.only(top: 2),
-            child: Icon(
-              Icons.info_outline,
-              size: 16,
-              color: textMuted,
-            ),
+            child: Icon(Icons.info_outline, size: 16, color: textMuted),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               message,
-              style: AppTextStyles.bodySmall.copyWith(
-                color: textMuted,
-              ),
+              style: AppTextStyles.bodySmall.copyWith(color: textMuted),
             ),
           ),
         ],

@@ -1,5 +1,7 @@
 // ignore_for_file: constant_identifier_names
 
+import '../utils/remote_id_registry.dart';
+
 /// Attendance status enumeration
 enum AttendanceStatus {
   PRESENT,
@@ -63,13 +65,16 @@ class Attendance {
   });
 
   factory Attendance.fromJson(Map<String, dynamic> json) {
-    int asInt(dynamic value) => (value as num).toInt();
+    int asInt(dynamic value, {String namespace = 'default'}) =>
+        RemoteIdRegistry.localId(value, namespace: namespace);
 
     return Attendance(
-      id: asInt(json['id']),
-      studentId: asInt(json['studentId']),
+      id: asInt(json['id'], namespace: 'attendance'),
+      studentId: asInt(json['studentId'], namespace: 'user'),
       studentName: json['studentName'] as String?,
-      scheduleId: asInt(json['scheduleId']),
+      scheduleId: json['scheduleId'] == null
+          ? 0
+          : asInt(json['scheduleId'], namespace: 'schedule'),
       subjectName: json['subjectName'] as String?,
       date: DateTime.parse(json['date'] as String),
       status: AttendanceStatus.fromString(json['status'] as String),

@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 /// API constants for EduOps backend integration
 class ApiConstants {
-  static const String cloudBackendUrl = 'http://136.116.64.6';
+  static const String cloudBackendUrl = 'https://adilkan.com';
   static const String localBackendUrl = 'http://localhost:8080';
   static const String androidEmulatorBackendUrl = 'http://10.0.2.2:8080';
   static String? _runtimeBaseUrlOverride;
@@ -11,6 +11,11 @@ class ApiConstants {
     final runtimeBaseUrlOverride = _runtimeBaseUrlOverride;
     if (runtimeBaseUrlOverride != null && runtimeBaseUrlOverride.isNotEmpty) {
       return runtimeBaseUrlOverride;
+    }
+
+    const configuredApiBaseUrl = String.fromEnvironment('EDUOPS_API_BASE_URL');
+    if (configuredApiBaseUrl.isNotEmpty) {
+      return _trimTrailingSlash(configuredApiBaseUrl);
     }
 
     const configuredBaseUrl = String.fromEnvironment('EDUOPS_BASE_URL');
@@ -22,12 +27,17 @@ class ApiConstants {
   }
 
   static String get apiPrefix {
+    const configuredApiBaseUrl = String.fromEnvironment('EDUOPS_API_BASE_URL');
+    if (configuredApiBaseUrl.isNotEmpty) {
+      return '';
+    }
+
     const configuredApiPrefix = String.fromEnvironment('EDUOPS_API_PREFIX');
     if (configuredApiPrefix.isNotEmpty) {
       return _normalizeApiPrefix(configuredApiPrefix);
     }
 
-    return '/api/v1';
+    return '/api/eduprog';
   }
 
   static String get baseApiUrl => '$baseUrl$apiPrefix';
@@ -44,56 +54,53 @@ class ApiConstants {
   static const String registerInitial = register;
 
   // Admin endpoints
-  static const String users = '/admin/users';
-  static const String students = '/admin/students';
-  static const String studentsUnassigned = '/admin/students/unassigned';
+  static const String users = '/users';
+  static const String students = '/users';
+  static const String studentsUnassigned = '/users';
   static String studentsByClass(int classGroupId) =>
-      '/students/group/$classGroupId';
-  static String updateStudentClass(int studentId) =>
-      '/admin/students/$studentId/group';
-  static const String studentsBulkAssign = '/admin/bulk-assign';
-  static const String teachers = '/teachers';
-  static String updateTeacherSubjects(int teacherId) =>
-      '/teacher/teachers/$teacherId/subjects';
-  static const String classGroups = '/student-groups';
-  static const String adminClassGroups = '/admin/student-groups';
-  static String classGroup(int id) => '/admin/student-groups/$id';
-  static const String subjects = '/admin/subjects';
+      '/groups/${Uri.encodeComponent(classGroupId.toString())}/students';
+  static String updateStudentClass(int studentId) => '/users/$studentId';
+  static const String studentsBulkAssign = '/users';
+  static const String teachers = '/users';
+  static String updateTeacherSubjects(int teacherId) => '/users/$teacherId';
+  static const String classGroups = '/groups';
+  static const String adminClassGroups = '/management/groups';
+  static String classGroup(int id) => '/management/groups/$id';
+  static const String subjects = '/subjects';
 
   // Announcement endpoints
-  static const String announcements = '/announcements';
-  static const String announcementsAll = '/announcements/all';
-  static const String announcementsAdmin = '/admin/announcements';
-  static String announcementById(int id) => '/admin/announcements/$id';
+  static const String announcements = '/notifications/me';
+  static const String announcementsAll = '/notifications/me';
+  static const String announcementsAdmin = '/notifications';
+  static String announcementById(int id) => '/notifications/$id/read';
 
   // Attendance endpoints
-  static const String attendance = '/attendance';
-  static const String teacherAttendance = '/teacher/attendance';
-  static const String attendanceRange = '/attendance/range';
-  static const String attendanceStats = '/attendance/stats';
+  static const String attendance = '/attendance/me';
+  static const String teacherAttendance = '/attendance';
+  static const String attendanceRange = '/attendance/me';
+  static const String attendanceStats = '/attendance/me';
   static String attendanceByStudent(int studentId) =>
-      '/attendance/student/$studentId';
+      '/attendance/students/$studentId';
   static String attendanceBySchedule(int scheduleId) =>
-      '/teacher/attendance/schedule/$scheduleId';
+      '/attendance/schedule/$scheduleId';
 
   // Grade endpoints
-  static const String grades = '/grades';
-  static const String teacherGrades = '/teacher/grades';
-  static String gradesBySubject(int subjectId) => '/grades/subject/$subjectId';
-  static const String gradesAverages = '/grades/averages';
-  static String gradesByStudent(int studentId) =>
-      '/teacher/grades/student/$studentId';
-  static String gradeById(int id) => '/teacher/grades/$id';
+  static const String grades = '/grades/me';
+  static const String teacherGrades = '/grades';
+  static String gradesBySubject(int subjectId) => '/grades/me';
+  static const String gradesAverages = '/grades/me';
+  static String gradesByStudent(int studentId) => '/grades/students/$studentId';
+  static String gradeById(int id) => '/grades/$id';
 
   // Schedule endpoints
-  static const String scheduleWeek = '/schedule/week';
+  static const String scheduleWeek = '/schedule/me';
   static String scheduleByClass(int classGroupId) =>
-      '/schedule/class/$classGroupId';
+      '/schedule/classes/${Uri.encodeComponent(classGroupId.toString())}';
   static String scheduleByTeacher(int teacherId) =>
-      '/schedule/teacher/$teacherId';
-  static const String schedule = '/admin/schedule';
-  static const String scheduleGenerate = '/admin/schedule/generate';
-  static String scheduleById(int id) => '/admin/schedule/$id';
+      '/schedule/teachers/$teacherId';
+  static const String schedule = '/management/schedule';
+  static const String scheduleGenerate = '/management/schedule';
+  static String scheduleById(int id) => '/management/schedule/$id';
 
   // Headers
   static const String authorizationHeader = 'Authorization';

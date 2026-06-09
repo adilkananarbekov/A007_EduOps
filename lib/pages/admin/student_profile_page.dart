@@ -140,7 +140,9 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
       if (currentUser?.role == UserRole.TEACHER) {
         attendance = attendance
             .where(
-              (record) => accessibleScheduleIds.contains(record.scheduleId),
+              (record) =>
+                  record.scheduleId == 0 ||
+                  accessibleScheduleIds.contains(record.scheduleId),
             )
             .toList();
         grades = grades.where((grade) {

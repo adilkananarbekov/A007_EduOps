@@ -1,6 +1,8 @@
 import '../api/api_client.dart';
 import '../api/api_constants.dart';
 import '../models/attendance.dart';
+import '../models/student.dart';
+import '../utils/remote_id_registry.dart';
 
 class AttendanceMarkingRecord {
   final int studentId;
@@ -37,28 +39,50 @@ class AttendanceService {
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    final response = await _apiClient.get(
-      ApiConstants.attendanceRange,
-      queryParams: {
-        'startDate': startDate.toIso8601String().split('T')[0],
-        'endDate': endDate.toIso8601String().split('T')[0],
-      },
-    );
-    return (response as List)
-        .map((json) => Attendance.fromJson(json as Map<String, dynamic>))
+    final records = await getMyAttendance();
+    return records
+        .where(
+          (record) =>
+              !record.date.isBefore(
+                DateTime(startDate.year, startDate.month, startDate.day),
+              ) &&
+              !record.date.isAfter(
+                DateTime(endDate.year, endDate.month, endDate.day),
+              ),
+        )
         .toList();
   }
 
   /// Get my attendance statistics
   Future<AttendanceStats> getAttendanceStats() async {
-    final response = await _apiClient.get(ApiConstants.attendanceStats);
-    return AttendanceStats.fromJson(response as Map<String, dynamic>);
+    final records = await getMyAttendance();
+    final present = records
+        .where((record) => record.status == AttendanceStatus.PRESENT)
+        .length;
+    final absent = records
+        .where((record) => record.status == AttendanceStatus.ABSENT)
+        .length;
+    final late = records
+        .where((record) => record.status == AttendanceStatus.LATE)
+        .length;
+    final excused = records
+        .where((record) => record.status == AttendanceStatus.EXCUSED)
+        .length;
+    final total = records.length;
+    return AttendanceStats(
+      totalDays: total,
+      presentDays: present,
+      absentDays: absent,
+      lateDays: late,
+      excusedDays: excused,
+      attendanceRate: total == 0 ? 0 : (present / total) * 100,
+    );
   }
 
   /// Get student attendance (teacher/admin)
   Future<List<Attendance>> getStudentAttendance(int studentId) async {
     final response = await _apiClient.get(
-      ApiConstants.attendanceByStudent(studentId),
+      '/attendance/students/${Uri.encodeComponent(RemoteIdRegistry.remoteId(studentId))}',
     );
     return (response as List)
         .map((json) => Attendance.fromJson(json as Map<String, dynamic>))
@@ -71,17 +95,26 @@ class AttendanceService {
     required DateTime date,
     required List<AttendanceMarkingRecord> records,
   }) async {
-    final response = await _apiClient.post(
-      ApiConstants.teacherAttendance,
-      body: {
-        'scheduleId': scheduleId,
-        'date': date.toIso8601String().split('T')[0],
-        'attendanceRecords': records.map((record) => record.toJson()).toList(),
-      },
+    final subjectName = RemoteIdRegistry.scheduleSubjectName(scheduleId);
+    final responses = await Future.wait(
+      records.map((record) async {
+        final response = await _apiClient.post(
+          ApiConstants.teacherAttendance,
+          body: {
+            'studentId': RemoteIdRegistry.remoteId(record.studentId),
+            'subjectName': subjectName,
+            'date': date.toIso8601String().split('T')[0],
+            'status': record.status.name.toLowerCase(),
+            'notes': record.notes,
+          },
+        );
+        return _withScheduleId(
+          Attendance.fromJson(response as Map<String, dynamic>),
+          scheduleId,
+        );
+      }),
     );
-    return (response as List)
-        .map((json) => Attendance.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return responses;
   }
 
   /// Get attendance for a schedule on a specific date
@@ -89,12 +122,58 @@ class AttendanceService {
     required int scheduleId,
     required DateTime date,
   }) async {
-    final response = await _apiClient.get(
-      ApiConstants.attendanceBySchedule(scheduleId),
-      queryParams: {'date': date.toIso8601String().split('T')[0]},
+    final className = RemoteIdRegistry.scheduleClassName(scheduleId);
+    final subjectName = RemoteIdRegistry.scheduleSubjectName(scheduleId);
+    if (className == null || className.isEmpty) {
+      return <Attendance>[];
+    }
+
+    final studentsResponse = await _apiClient.get(
+      '/groups/${Uri.encodeComponent(className)}/students',
     );
-    return (response as List)
-        .map((json) => Attendance.fromJson(json as Map<String, dynamic>))
+    final students = (studentsResponse as List)
+        .map((json) => Student.fromJson(json as Map<String, dynamic>))
         .toList();
+
+    final attendanceGroups = await Future.wait(
+      students.map((student) async {
+        try {
+          return await getStudentAttendance(student.id);
+        } catch (_) {
+          return <Attendance>[];
+        }
+      }),
+    );
+
+    final requestedDate = DateTime(date.year, date.month, date.day);
+    return attendanceGroups
+        .expand((records) => records)
+        .where(
+          (record) =>
+              _sameDate(record.date, requestedDate) &&
+              (subjectName == null ||
+                  record.subjectName == null ||
+                  record.subjectName == subjectName),
+        )
+        .map((record) => _withScheduleId(record, scheduleId))
+        .toList();
+  }
+
+  bool _sameDate(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  Attendance _withScheduleId(Attendance attendance, int scheduleId) {
+    return Attendance(
+      id: attendance.id,
+      studentId: attendance.studentId,
+      studentName: attendance.studentName,
+      scheduleId: scheduleId,
+      subjectName: attendance.subjectName,
+      date: attendance.date,
+      status: attendance.status,
+      notes: attendance.notes,
+      markedByName: attendance.markedByName,
+      markedAt: attendance.markedAt,
+    );
   }
 }

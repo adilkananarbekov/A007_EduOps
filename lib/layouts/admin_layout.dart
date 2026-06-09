@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../core/config/app_runtime_config.dart';
 import '../core/constants/app_spacing.dart';
 import '../core/models/user_role.dart';
 import '../core/providers/providers.dart';
@@ -8,6 +9,7 @@ import '../core/router/app_back_navigation.dart';
 import '../core/security/role_access.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../widgets/demo_mode_banner.dart';
 
 class AdminLayout extends ConsumerWidget {
   final Widget child;
@@ -39,6 +41,12 @@ class AdminLayout extends ConsumerWidget {
       '/admin/attendance',
       Icons.fact_check_outlined,
       Icons.fact_check,
+    ),
+    _NavItem(
+      'Learning',
+      '/admin/learning',
+      Icons.menu_book_outlined,
+      Icons.menu_book,
     ),
     _NavItem(
       'Reports',
@@ -78,6 +86,12 @@ class AdminLayout extends ConsumerWidget {
       '/admin/attendance',
       Icons.fact_check_outlined,
       Icons.fact_check,
+    ),
+    _NavItem(
+      'Learning',
+      '/admin/learning',
+      Icons.menu_book_outlined,
+      Icons.menu_book,
     ),
     _NavItem(
       'Reports',
@@ -352,6 +366,10 @@ class _Sidebar extends ConsumerWidget {
                                 color: railForeground.withValues(alpha: 0.72),
                               ),
                             ),
+                            if (AppRuntimeConfig.isTestMode) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              const DemoModeBanner(compact: true),
+                            ],
                           ],
                         ),
                       ),
@@ -554,8 +572,7 @@ class _MobileLayout extends ConsumerWidget {
           automaticallyImplyLeading: !canGoBack,
           leading: canGoBack
               ? IconButton(
-                  onPressed: () =>
-                      _handleAdminBack(context, ref, currentRoute),
+                  onPressed: () => _handleAdminBack(context, ref, currentRoute),
                   icon: const Icon(Icons.arrow_back_ios_new, size: 18),
                   tooltip: 'Back',
                 )
@@ -618,6 +635,10 @@ class _MobileLayout extends ConsumerWidget {
                       color: AppColors.railForegroundOf(context),
                     ),
                   ),
+                  if (AppRuntimeConfig.isTestMode) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    const DemoModeBanner(compact: true),
+                  ],
                   const SizedBox(height: AppSpacing.md),
                   ...visibleDrawerItems.map(
                     (item) => Padding(

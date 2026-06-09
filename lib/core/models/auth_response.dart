@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../utils/remote_id_registry.dart';
 import 'user_role.dart';
 
 /// Authentication response from login endpoint
@@ -29,7 +30,9 @@ class AuthResponse {
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
-    final token = _stringValue(json, const ['token', 'access_token']) ?? '';
+    final token =
+        _stringValue(json, const ['token', 'access_token', 'accessToken']) ??
+        '';
     final payload = _decodeJwtPayload(token);
     final Map<String, dynamic> userJson =
         _nestedMapValue(json, const ['user']) ?? <String, dynamic>{};
@@ -61,13 +64,20 @@ class AuthResponse {
 
     return AuthResponse(
       token: token,
-      type: _stringValue(json, const ['type', 'token_type']) ?? 'Bearer',
+      type:
+          _stringValue(json, const ['type', 'token_type', 'tokenType']) ??
+          'Bearer',
       refreshToken: _stringValue(json, const ['refreshToken', 'refresh_token']),
       userId:
           _intValue(userJson, const ['userId', 'user_id', 'id']) ??
           _intValue(payload, const ['userId', 'user_id', 'id', 'uid']) ??
           _intFromSubject(_stringValue(payload, const ['sub'])) ??
-          0,
+          RemoteIdRegistry.localId(
+            _stringValue(userJson, const ['id']) ??
+                _stringValue(payload, const ['sub']) ??
+                email,
+            namespace: 'user',
+          ),
       email: email,
       firstName: firstName,
       lastName: lastName,
@@ -77,7 +87,10 @@ class AuthResponse {
           _intValue(payload, const ['profileId', 'profile_id']),
       classGroupId:
           _intValue(userJson, const ['classGroupId', 'class_group_id']) ??
-          _intValue(payload, const ['classGroupId', 'class_group_id']),
+          _intValue(payload, const ['classGroupId', 'class_group_id']) ??
+          _classGroupIdFromName(
+            _stringValue(userJson, const ['className', 'class_name']),
+          ),
     );
   }
 
@@ -86,6 +99,7 @@ class AuthResponse {
       'token': token,
       'type': type,
       'refresh_token': refreshToken,
+      'refreshToken': refreshToken,
       'userId': userId,
       'email': email,
       'firstName': firstName,
@@ -220,5 +234,14 @@ class AuthResponse {
       return null;
     }
     return subject;
+  }
+
+  static int? _classGroupIdFromName(String? className) {
+    if (className == null || className.trim().isEmpty) {
+      return null;
+    }
+    final id = RemoteIdRegistry.localId(className, namespace: 'group_name');
+    RemoteIdRegistry.registerGroupName(id, className);
+    return id;
   }
 }

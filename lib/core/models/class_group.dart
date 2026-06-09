@@ -1,3 +1,5 @@
+import '../utils/remote_id_registry.dart';
+
 /// Class group (class) model
 class ClassGroup {
   final int id;
@@ -15,13 +17,20 @@ class ClassGroup {
   });
 
   factory ClassGroup.fromJson(Map<String, dynamic> json) {
-    int? asInt(dynamic value) => value == null ? null : (value as num).toInt();
+    int? asInt(dynamic value) => value == null
+        ? null
+        : RemoteIdRegistry.localId(value, namespace: 'group');
 
     final students = json['students'];
+    final id =
+        asInt(json['id']) ??
+        RemoteIdRegistry.localId(json['name'], namespace: 'group_name');
+    final name = json['name'] as String;
+    RemoteIdRegistry.registerGroupName(id, name);
 
     return ClassGroup(
-      id: asInt(json['id']) ?? 0,
-      name: json['name'] as String,
+      id: id,
+      name: name,
       grade: asInt(json['grade']) ?? asInt(json['year']),
       monthlyFee: json['monthlyFee'] as int?,
       studentCount:

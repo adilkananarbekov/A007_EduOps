@@ -5,6 +5,7 @@ import '../models/student.dart';
 import '../models/teacher.dart';
 import '../models/class_group.dart';
 import '../models/subject.dart';
+import '../utils/remote_id_registry.dart';
 
 class AccessibleStudentsResult {
   final List<Student> students;
@@ -30,7 +31,9 @@ class AdminService {
   Future<List<Student>> getStudents() async {
     final response = await _apiClient.get(ApiConstants.students);
     return (response as List)
-        .map((json) => Student.fromJson(json as Map<String, dynamic>))
+        .map((json) => json as Map<String, dynamic>)
+        .where((json) => _roleOf(json) == 'student')
+        .map(Student.fromJson)
         .toList();
   }
 
@@ -102,8 +105,11 @@ class AdminService {
 
   /// Get students by class
   Future<List<Student>> getStudentsByClass(int classGroupId) async {
+    final className =
+        RemoteIdRegistry.groupName(classGroupId) ??
+        RemoteIdRegistry.remoteId(classGroupId);
     final response = await _apiClient.get(
-      ApiConstants.studentsByClass(classGroupId),
+      '/groups/${Uri.encodeComponent(className)}/students',
     );
     return (response as List)
         .map((json) => Student.fromJson(json as Map<String, dynamic>))
@@ -112,17 +118,14 @@ class AdminService {
 
   /// Get unassigned students
   Future<List<Student>> getUnassignedStudents() async {
-    final response = await _apiClient.get(ApiConstants.studentsUnassigned);
-    return (response as List)
-        .map((json) => Student.fromJson(json as Map<String, dynamic>))
-        .toList();
+    final students = await getStudents();
+    return students.where((student) => student.classGroupName == null).toList();
   }
 
   /// Update student class
   Future<void> updateStudentClass(int studentId, int classGroupId) async {
-    await _apiClient.put(
-      ApiConstants.updateStudentClass(studentId),
-      body: classGroupId,
+    throw UnsupportedError(
+      'Changing a student group is not exposed by the current backend API.',
     );
   }
 
@@ -131,9 +134,8 @@ class AdminService {
     List<int> studentIds,
     int classGroupId,
   ) async {
-    await _apiClient.put(
-      ApiConstants.studentsBulkAssign,
-      body: {'studentIds': studentIds, 'classGroupId': classGroupId},
+    throw UnsupportedError(
+      'Bulk student reassignment is not exposed by the current backend API.',
     );
   }
 
@@ -141,7 +143,9 @@ class AdminService {
   Future<List<Teacher>> getTeachers() async {
     final response = await _apiClient.get(ApiConstants.teachers);
     return (response as List)
-        .map((json) => Teacher.fromJson(json as Map<String, dynamic>))
+        .map((json) => json as Map<String, dynamic>)
+        .where((json) => _roleOf(json) == 'teacher')
+        .map(Teacher.fromJson)
         .toList();
   }
 
@@ -150,18 +154,18 @@ class AdminService {
     int teacherId,
     List<int> subjectIds,
   ) async {
-    await _apiClient.put(
-      ApiConstants.updateTeacherSubjects(teacherId),
-      body: subjectIds,
+    throw UnsupportedError(
+      'Teacher subject assignment is not exposed by the current backend API.',
     );
   }
 
   /// Get all class groups
   Future<List<ClassGroup>> getClassGroups() async {
     final response = await _apiClient.get(ApiConstants.classGroups);
-    return (response as List)
+    final groups = (response as List)
         .map((json) => ClassGroup.fromJson(json as Map<String, dynamic>))
         .toList();
+    return Future.wait(groups.map(_withStudentCount));
   }
 
   /// Create class group
@@ -172,7 +176,10 @@ class AdminService {
   }) async {
     final response = await _apiClient.post(
       ApiConstants.adminClassGroups,
-      body: {'name': name, 'year': grade},
+      body: {
+        'name': name,
+        'description': grade == null ? null : 'Grade $grade',
+      },
     );
     return ClassGroup.fromJson(response as Map<String, dynamic>);
   }
@@ -184,9 +191,12 @@ class AdminService {
     int? grade,
     int? monthlyFee,
   }) async {
-    final response = await _apiClient.put(
-      ApiConstants.classGroup(id),
-      body: {'id': id, 'name': name, 'year': grade},
+    final response = await _apiClient.patch(
+      '/management/groups/${Uri.encodeComponent(RemoteIdRegistry.remoteId(id))}',
+      body: {
+        'name': name,
+        'description': grade == null ? null : 'Grade $grade',
+      },
     );
     return ClassGroup.fromJson(response as Map<String, dynamic>);
   }
@@ -199,39 +209,26 @@ class AdminService {
     required String lastName,
     int? classGroupId,
   }) async {
-    final userResponse =
-        await _apiClient.post(
-              ApiConstants.users,
-              body: {
-                'email': email,
-                'password': password,
-                'firstName': firstName,
-                'lastName': lastName,
-                'role': 'ROLE_STUDENT',
-              },
-            )
-            as Map<String, dynamic>;
-
-    final userId = (userResponse['id'] as num?)?.toInt();
-    if (userId == null) {
-      throw const FormatException('User creation response is missing an id.');
-    }
-
-    final uniqueSuffix = DateTime.now().microsecondsSinceEpoch;
     await _apiClient.post(
-      ApiConstants.students,
+      ApiConstants.users,
       body: {
-        'userId': userId,
-        'studentNumber': 'STU-$uniqueSuffix',
-        'accountNumber': 'ACC-$uniqueSuffix',
-        'studentGroupId': classGroupId,
+        'email': email,
+        'password': password,
+        'firstName': firstName,
+        'lastName': lastName,
+        'role': 'student',
+        'className': classGroupId == null
+            ? null
+            : RemoteIdRegistry.groupName(classGroupId),
       },
     );
   }
 
   /// Delete class group
   Future<void> deleteClassGroup(int id) async {
-    await _apiClient.delete(ApiConstants.classGroup(id));
+    await _apiClient.delete(
+      '/management/groups/${Uri.encodeComponent(RemoteIdRegistry.remoteId(id))}',
+    );
   }
 
   /// Get all subjects
@@ -240,6 +237,24 @@ class AdminService {
     return (response as List)
         .map((json) => Subject.fromJson(json as Map<String, dynamic>))
         .toList();
+  }
+
+  String _roleOf(Map<String, dynamic> json) =>
+      (json['role'] ?? '').toString().trim().toLowerCase();
+
+  Future<ClassGroup> _withStudentCount(ClassGroup group) async {
+    try {
+      final students = await getStudentsByClass(group.id);
+      return ClassGroup(
+        id: group.id,
+        name: group.name,
+        grade: group.grade,
+        monthlyFee: group.monthlyFee,
+        studentCount: students.length,
+      );
+    } catch (_) {
+      return group;
+    }
   }
 
   Future<List<Student>> _getStudentsFromGroups() async {

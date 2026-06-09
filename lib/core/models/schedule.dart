@@ -1,3 +1,5 @@
+import '../utils/remote_id_registry.dart';
+
 /// Schedule model
 class Schedule {
   final int id;
@@ -27,14 +29,11 @@ class Schedule {
   });
 
   factory Schedule.fromJson(Map<String, dynamic> json) {
-    int asInt(dynamic value, {int fallback = 0}) {
-      if (value is num) {
-        return value.toInt();
+    int asInt(dynamic value, {int fallback = 0, String namespace = 'default'}) {
+      if (value == null) {
+        return fallback;
       }
-      if (value is String) {
-        return int.tryParse(value) ?? fallback;
-      }
-      return fallback;
+      return RemoteIdRegistry.localId(value, namespace: namespace);
     }
 
     // Helper to convert LocalTime object or string to HH:mm string
@@ -49,20 +48,47 @@ class Schedule {
       return '00:00';
     }
 
+    final id = asInt(json['id'], namespace: 'schedule');
+    final classGroupName =
+        json['classGroupName'] as String? ??
+        json['studentGroupName'] as String? ??
+        json['className'] as String?;
+    final classGroupId =
+        asInt(
+              json['classGroupId'] ?? json['studentGroupId'],
+              namespace: 'group',
+            ) !=
+            0
+        ? asInt(
+            json['classGroupId'] ?? json['studentGroupId'],
+            namespace: 'group',
+          )
+        : RemoteIdRegistry.localId(classGroupName, namespace: 'group_name');
+    final subjectName =
+        json['subjectName'] as String? ??
+        json['className'] as String? ??
+        'Subject';
+    final subjectId =
+        asInt(json['subjectId'] ?? json['classId'], namespace: 'subject') != 0
+        ? asInt(json['subjectId'] ?? json['classId'], namespace: 'subject')
+        : RemoteIdRegistry.localId(subjectName, namespace: 'subject_name');
+    RemoteIdRegistry.registerScheduleMeta(
+      id,
+      className: classGroupName,
+      subjectName: subjectName,
+    );
+    RemoteIdRegistry.registerGroupName(classGroupId, classGroupName ?? '');
+    RemoteIdRegistry.registerSubjectName(subjectId, subjectName);
+
     return Schedule(
-      id: asInt(json['id']),
-      classGroupId: asInt(json['classGroupId'] ?? json['studentGroupId']),
-      classGroupName:
-          json['classGroupName'] as String? ??
-          json['studentGroupName'] as String?,
-      subjectId: asInt(json['subjectId'] ?? json['classId']),
-      subjectName:
-          json['subjectName'] as String? ??
-          json['className'] as String? ??
-          'Class #${asInt(json['subjectId'] ?? json['classId'])}',
-      teacherId: asInt(json['teacherId']),
+      id: id,
+      classGroupId: classGroupId,
+      classGroupName: classGroupName,
+      subjectId: subjectId,
+      subjectName: subjectName,
+      teacherId: asInt(json['teacherId'], namespace: 'user'),
       teacherName: json['teacherName'] as String?,
-      dayOfWeek: json['dayOfWeek'] as String,
+      dayOfWeek: _parseDayOfWeek(json['dayOfWeek']),
       startTime: parseTime(json['startTime']),
       endTime: parseTime(json['endTime']),
       room: json['room'] as String?,
@@ -83,5 +109,33 @@ class Schedule {
       'endTime': endTime,
       'room': room,
     };
+  }
+
+  static String _parseDayOfWeek(dynamic value) {
+    if (value is num) {
+      const days = [
+        'MONDAY',
+        'TUESDAY',
+        'WEDNESDAY',
+        'THURSDAY',
+        'FRIDAY',
+        'SATURDAY',
+        'SUNDAY',
+      ];
+      final index = value.toInt() - 1;
+      return index >= 0 && index < days.length ? days[index] : 'MONDAY';
+    }
+
+    final raw = value?.toString().trim();
+    if (raw == null || raw.isEmpty) {
+      return 'MONDAY';
+    }
+
+    final numeric = int.tryParse(raw);
+    if (numeric != null) {
+      return _parseDayOfWeek(numeric);
+    }
+
+    return raw.toUpperCase();
   }
 }

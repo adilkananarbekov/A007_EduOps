@@ -10,6 +10,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/metric_card.dart';
+import '../../widgets/motion_icon.dart';
 import '../../widgets/page_header.dart';
 
 class AdminDashboardPage extends ConsumerStatefulWidget {
@@ -204,6 +205,9 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
     final canViewReports =
         currentUser != null &&
         RoleAccess.canAccessRoute(currentUser.role, '/admin/reports');
+    final canViewLearning =
+        currentUser != null &&
+        RoleAccess.canAccessRoute(currentUser.role, '/admin/learning');
     final canViewAnnouncements =
         currentUser != null &&
         RoleAccess.canAccessRoute(currentUser.role, '/admin/announcements');
@@ -272,6 +276,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
         _ActionData(
           label: 'Mark attendance',
           description: 'Open the roster and close today’s lesson attendance.',
+          motionAsset: MotionAssets.checkmark,
           icon: Icons.fact_check_outlined,
           color: primary,
           onTap: () => context.push('/admin/attendance'),
@@ -280,14 +285,25 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
         _ActionData(
           label: 'Check timetable',
           description: 'Review classes, rooms, and the week board.',
+          motionAsset: MotionAssets.calendar,
           icon: Icons.calendar_today_outlined,
           color: primary,
           onTap: () => context.push('/admin/schedule'),
+        ),
+      if (canViewLearning)
+        _ActionData(
+          label: 'Learning ops',
+          description: 'Open lessons, tests, assignments, and coefficients.',
+          motionAsset: MotionAssets.activity,
+          icon: Icons.menu_book_outlined,
+          color: primary,
+          onTap: () => context.push('/admin/learning'),
         ),
       if (canViewStudents)
         _ActionData(
           label: 'Open students',
           description: 'Search profiles, groups, and individual records.',
+          motionAsset: MotionAssets.userPlus,
           icon: Icons.people_alt_outlined,
           color: primary,
           onTap: () => context.push('/admin/students'),
@@ -296,6 +312,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
         _ActionData(
           label: 'Open updates',
           description: 'Review and publish announcement messages.',
+          motionAsset: MotionAssets.notification,
           icon: Icons.campaign_outlined,
           color: accent,
           onTap: () => context.push('/admin/announcements'),
@@ -711,6 +728,7 @@ class _HeroPill extends StatelessWidget {
 class _ActionData {
   final String label;
   final String description;
+  final String? motionAsset;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
@@ -718,6 +736,7 @@ class _ActionData {
   const _ActionData({
     required this.label,
     required this.description,
+    this.motionAsset,
     required this.icon,
     required this.color,
     required this.onTap,
@@ -757,7 +776,9 @@ class _ActionTile extends StatelessWidget {
                   color: action.color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 ),
-                child: Icon(action.icon, color: action.color),
+                child: action.motionAsset == null
+                    ? Icon(action.icon, color: action.color)
+                    : MotionIcon(asset: action.motionAsset!, size: 38),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(

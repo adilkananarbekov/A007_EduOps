@@ -1,3 +1,5 @@
+import '../utils/remote_id_registry.dart';
+
 /// Grade model
 class Grade {
   final int id;
@@ -31,28 +33,34 @@ class Grade {
   });
 
   factory Grade.fromJson(Map<String, dynamic> json) {
-    int asInt(dynamic value) => (value as num).toInt();
+    int asInt(dynamic value, {String namespace = 'default'}) =>
+        RemoteIdRegistry.localId(value, namespace: namespace);
 
     final subjectIdValue = json['subjectId'] ?? json['takenClassId'];
-    final subjectId = subjectIdValue is num ? subjectIdValue.toInt() : 0;
     final subjectName =
         json['subjectName'] as String? ??
         json['takenClassName'] as String? ??
         json['className'] as String? ??
-        'Class #$subjectId';
+        'Subject';
+    final subjectId = subjectIdValue == null
+        ? RemoteIdRegistry.localId(subjectName, namespace: 'subject_name')
+        : asInt(subjectIdValue, namespace: 'subject');
+    RemoteIdRegistry.registerSubjectName(subjectId, subjectName);
 
     return Grade(
-      id: asInt(json['id']),
-      studentId: asInt(json['studentId']),
+      id: asInt(json['id'], namespace: 'grade'),
+      studentId: asInt(json['studentId'], namespace: 'user'),
       studentName: json['studentName'] as String?,
       subjectId: subjectId,
       subjectName: subjectName,
-      teacherId: (json['teacherId'] as num?)?.toInt(),
+      teacherId: json['teacherId'] == null
+          ? null
+          : asInt(json['teacherId'], namespace: 'user'),
       teacherName: json['teacherName'] as String?,
       score: ((json['score'] ?? json['value']) as num).toDouble(),
       maxScore: ((json['maxScore'] ?? json['maxValue'] ?? 100) as num)
           .toDouble(),
-      gradeType: json['gradeType'] as String?,
+      gradeType: json['gradeType'] as String? ?? json['type'] as String?,
       date: DateTime.parse(json['date'] as String),
       notes: (json['notes'] ?? json['description']) as String?,
       createdAt: json['createdAt'] != null

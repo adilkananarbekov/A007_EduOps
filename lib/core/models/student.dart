@@ -1,3 +1,5 @@
+import '../utils/remote_id_registry.dart';
+
 /// Student model
 class Student {
   final int id;
@@ -31,7 +33,12 @@ class Student {
   });
 
   factory Student.fromJson(Map<String, dynamic> json) {
-    int? asInt(dynamic value) => value == null ? null : (value as num).toInt();
+    int? asInt(dynamic value, {String namespace = 'default'}) {
+      if (value == null) {
+        return null;
+      }
+      return RemoteIdRegistry.localId(value, namespace: namespace);
+    }
 
     final name =
         json['name'] as String? ??
@@ -44,24 +51,35 @@ class Student {
         asInt(json['classGroupId']) ??
         asInt(json['class_group_id']) ??
         asInt(json['studentGroupId']) ??
-        asInt(json['student_group_id']);
+        asInt(json['student_group_id']) ??
+        _classGroupIdFromName(json['className'] ?? json['class_group_name']);
+
+    final classGroupName =
+        json['classGroupName'] as String? ??
+        json['class_group_name'] as String? ??
+        json['studentGroupName'] as String? ??
+        json['student_group_name'] as String? ??
+        json['className'] as String?;
+    if (groupId != null && classGroupName != null) {
+      RemoteIdRegistry.registerGroupName(groupId, classGroupName);
+    }
 
     return Student(
-      id: asInt(json['id']) ?? 0,
-      userId: asInt(json['userId']) ?? asInt(json['user_id']),
+      id: asInt(json['id'], namespace: 'user') ?? 0,
+      userId:
+          asInt(json['userId'], namespace: 'user') ??
+          asInt(json['user_id'], namespace: 'user') ??
+          asInt(json['id'], namespace: 'user'),
       name: name.isNotEmpty ? name : 'Unknown',
-      email: json['email'] as String,
-      phoneNumber: json['phoneNumber'] as String?,
+      email: json['email'] as String? ?? '',
+      phoneNumber:
+          json['phoneNumber'] as String? ?? json['phone_number'] as String?,
       address: json['address'] as String?,
       dateOfBirth: json['dateOfBirth'] != null
           ? DateTime.tryParse(json['dateOfBirth'] as String)
           : null,
       classGroupId: groupId,
-      classGroupName:
-          json['classGroupName'] as String? ??
-          json['class_group_name'] as String? ??
-          json['studentGroupName'] as String? ??
-          json['student_group_name'] as String?,
+      classGroupName: classGroupName,
       studentNumber:
           json['studentNumber'] as String? ?? json['student_number'] as String?,
       accountNumber:
@@ -98,4 +116,14 @@ class Student {
 
   /// Remaining words after first name
   String get lastName => name.split(' ').skip(1).join(' ');
+
+  static int? _classGroupIdFromName(dynamic value) {
+    final className = value?.toString().trim();
+    if (className == null || className.isEmpty) {
+      return null;
+    }
+    final id = RemoteIdRegistry.localId(className, namespace: 'group_name');
+    RemoteIdRegistry.registerGroupName(id, className);
+    return id;
+  }
 }

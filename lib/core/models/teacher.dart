@@ -1,3 +1,5 @@
+import '../utils/remote_id_registry.dart';
+
 /// Teacher model
 class Teacher {
   final int id;
@@ -15,7 +17,9 @@ class Teacher {
   });
 
   factory Teacher.fromJson(Map<String, dynamic> json) {
-    int? asInt(dynamic value) => value == null ? null : (value as num).toInt();
+    int? asInt(dynamic value) => value == null
+        ? null
+        : RemoteIdRegistry.localId(value, namespace: 'user');
 
     final name =
         json['name'] as String? ??
@@ -27,7 +31,7 @@ class Teacher {
     return Teacher(
       id: asInt(json['id']) ?? 0,
       name: name.isNotEmpty ? name : 'Unknown',
-      email: json['email'] as String,
+      email: json['email'] as String? ?? '',
       phoneNumber:
           json['phoneNumber'] as String? ?? json['phone_number'] as String?,
       subjects: switch (json['subjects'] ?? json['subject_ids']) {

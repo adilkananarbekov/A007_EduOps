@@ -61,7 +61,8 @@ class _AttendanceMarkingPageState extends ConsumerState<AttendanceMarkingPage> {
     };
 
     for (final studentId in trackedStudentIds) {
-      if (_attendance[studentId] != _savedAttendanceByStudent[studentId]?.status.name) {
+      if (_attendance[studentId] !=
+          _savedAttendanceByStudent[studentId]?.status.name) {
         return true;
       }
     }
@@ -124,7 +125,10 @@ class _AttendanceMarkingPageState extends ConsumerState<AttendanceMarkingPage> {
         });
 
         if (selectedSchedule != null) {
-          await _applyScheduleSelection(selectedSchedule, confirmDiscard: false);
+          await _applyScheduleSelection(
+            selectedSchedule,
+            confirmDiscard: false,
+          );
         }
       }
     } catch (e) {
@@ -201,17 +205,15 @@ class _AttendanceMarkingPageState extends ConsumerState<AttendanceMarkingPage> {
       return;
     }
 
-    await _applyScheduleSelectionForDate(
-      schedule,
-      alignedDate,
-    );
+    await _applyScheduleSelectionForDate(schedule, alignedDate);
   }
 
   Future<void> _applyScheduleSelectionForDate(
     Schedule schedule,
     DateTime date,
   ) async {
-    final matchedGroup = _findGroupById(schedule.classGroupId, _groups) ??
+    final matchedGroup =
+        _findGroupById(schedule.classGroupId, _groups) ??
         ClassGroup(
           id: schedule.classGroupId,
           name: schedule.classGroupName ?? 'Group #${schedule.classGroupId}',
@@ -484,7 +486,8 @@ class _AttendanceMarkingPageState extends ConsumerState<AttendanceMarkingPage> {
     final preferredToday = _weekdayName(DateTime.now());
 
     final candidates = schedules.where((schedule) {
-      if (requestedGroupId != null && schedule.classGroupId != requestedGroupId) {
+      if (requestedGroupId != null &&
+          schedule.classGroupId != requestedGroupId) {
         return false;
       }
       if (normalizedDay != null &&
@@ -492,8 +495,7 @@ class _AttendanceMarkingPageState extends ConsumerState<AttendanceMarkingPage> {
         return false;
       }
       return true;
-    }).toList()
-      ..sort(_compareSchedules);
+    }).toList()..sort(_compareSchedules);
 
     if (candidates.isNotEmpty) {
       for (final schedule in candidates) {
@@ -512,9 +514,9 @@ class _AttendanceMarkingPageState extends ConsumerState<AttendanceMarkingPage> {
   }
 
   int _compareSchedules(Schedule a, Schedule b) {
-    final weekdayCompare = _weekdayOrder(a.dayOfWeek).compareTo(
-      _weekdayOrder(b.dayOfWeek),
-    );
+    final weekdayCompare = _weekdayOrder(
+      a.dayOfWeek,
+    ).compareTo(_weekdayOrder(b.dayOfWeek));
     if (weekdayCompare != 0) {
       return weekdayCompare;
     }
@@ -524,9 +526,9 @@ class _AttendanceMarkingPageState extends ConsumerState<AttendanceMarkingPage> {
       return timeCompare;
     }
 
-    final groupCompare = (a.classGroupName ?? '')
-        .toLowerCase()
-        .compareTo((b.classGroupName ?? '').toLowerCase());
+    final groupCompare = (a.classGroupName ?? '').toLowerCase().compareTo(
+      (b.classGroupName ?? '').toLowerCase(),
+    );
     if (groupCompare != 0) {
       return groupCompare;
     }
@@ -662,10 +664,7 @@ class _AttendanceMarkingPageState extends ConsumerState<AttendanceMarkingPage> {
                                           strokeWidth: 2,
                                         ),
                                       )
-                                    : const Icon(
-                                        Icons.save_outlined,
-                                        size: 16,
-                                      ),
+                                    : const Icon(Icons.save_outlined, size: 16),
                                 label: const Text('Save'),
                               ),
                             ],
@@ -715,10 +714,7 @@ class _AttendanceMarkingPageState extends ConsumerState<AttendanceMarkingPage> {
                                         strokeWidth: 2,
                                       ),
                                     )
-                                  : const Icon(
-                                      Icons.save_outlined,
-                                      size: 16,
-                                    ),
+                                  : const Icon(Icons.save_outlined, size: 16),
                               label: const Text('Save'),
                             ),
                           ],
@@ -744,7 +740,9 @@ class _AttendanceMarkingPageState extends ConsumerState<AttendanceMarkingPage> {
                                 statusLabel: _statusLabel,
                                 statusColor: _statusColor,
                                 onSelectStatus: (studentId, status) {
-                                  setState(() => _attendance[studentId] = status);
+                                  setState(
+                                    () => _attendance[studentId] = status,
+                                  );
                                 },
                               );
                             }
@@ -907,7 +905,8 @@ class _AttendanceCompactTable extends StatelessWidget {
               final student = entry.value;
               final currentStatus = attendance[student.id];
               final savedRecord = savedAttendanceByStudent[student.id];
-              final previousLabel = savedRecord?.status.displayName ?? 'Not marked';
+              final previousLabel =
+                  savedRecord?.status.displayName ?? 'Not marked';
               final previousColor = savedRecord != null
                   ? statusColor(savedRecord.status.name)
                   : AppColors.accentOf(context);
@@ -950,7 +949,9 @@ class _AttendanceCompactTable extends StatelessWidget {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    if ((student.phoneNumber ?? '').trim().isNotEmpty)
+                                    if ((student.phoneNumber ?? '')
+                                        .trim()
+                                        .isNotEmpty)
                                       Text(
                                         student.phoneNumber!,
                                         style: AppTextStyles.bodySmall.copyWith(
@@ -1154,7 +1155,8 @@ class _AttendanceMobileList extends StatelessWidget {
         AppSpacing.md,
       ),
       itemCount: students.length,
-      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
+      separatorBuilder: (context, index) =>
+          const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) {
         final student = students[index];
         final currentStatus = attendance[student.id];
@@ -1212,7 +1214,8 @@ class _AttendanceMobileList extends StatelessWidget {
                             _AttendanceSummaryChip(
                               label: 'Saved',
                               value:
-                                  savedRecord?.status.displayName ?? 'Not marked',
+                                  savedRecord?.status.displayName ??
+                                  'Not marked',
                               color: savedRecord != null
                                   ? statusColor(savedRecord.status.name)
                                   : AppColors.accentOf(context),
@@ -1235,10 +1238,7 @@ class _AttendanceMobileList extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.xs),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: textMuted,
-                  ),
+                  Icon(Icons.chevron_right_rounded, color: textMuted),
                 ],
               ),
             ),

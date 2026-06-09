@@ -1,6 +1,5 @@
 import 'dart:async' as async;
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -309,10 +308,7 @@ class ApiClient {
     return endpoint == ApiConstants.login || endpoint == ApiConstants.refresh;
   }
 
-  Duration _requestTimeoutFor(
-    String endpoint, {
-    required bool includeAuth,
-  }) {
+  Duration _requestTimeoutFor(String endpoint, {required bool includeAuth}) {
     if (!includeAuth &&
         ApiConstants.baseUrl == ApiConstants.cloudBackendUrl &&
         _isAuthenticationEndpoint(endpoint)) {
@@ -484,9 +480,6 @@ class ApiClient {
             )
             .timeout(ApiConstants.connectionTimeout),
       );
-    } on SocketException catch (e) {
-      _log('[API] GET SocketException: $e');
-      throw NetworkException(_networkFailureMessage(e), originalError: e);
     } on http.ClientException catch (e) {
       _log('[API] GET ClientException: $e');
       throw NetworkException(_networkFailureMessage(e), originalError: e);
@@ -542,9 +535,6 @@ class ApiClient {
             )
             .timeout(timeout),
       );
-    } on SocketException catch (e) {
-      _log('[API] POST SocketException: $e');
-      throw NetworkException(_networkFailureMessage(e), originalError: e);
     } on http.ClientException catch (e) {
       _log('[API] POST ClientException: $e');
       throw NetworkException(_networkFailureMessage(e), originalError: e);
@@ -604,9 +594,6 @@ class ApiClient {
             )
             .timeout(ApiConstants.connectionTimeout),
       );
-    } on SocketException catch (e) {
-      _log('[API] PUT SocketException: $e');
-      throw NetworkException(_networkFailureMessage(e), originalError: e);
     } on http.ClientException catch (e) {
       _log('[API] PUT ClientException: $e');
       throw NetworkException(_networkFailureMessage(e), originalError: e);
@@ -630,6 +617,50 @@ class ApiClient {
     }
   }
 
+  /// Make PATCH request
+  Future<dynamic> patch(
+    String endpoint, {
+    Object? body,
+    bool includeAuth = true,
+  }) async {
+    try {
+      final url = _buildUrlForBase(ApiConstants.baseUrl, endpoint);
+      _log('[API] PATCH $url');
+      _log('[API] PATCH body: ${_describeBody(body)}');
+
+      return await _sendWithRefreshRetry(
+        includeAuth: includeAuth,
+        send: () => _client
+            .patch(
+              Uri.parse(url),
+              headers: _buildHeaders(includeAuth: includeAuth),
+              body: body != null ? json.encode(body) : null,
+            )
+            .timeout(ApiConstants.connectionTimeout),
+      );
+    } on http.ClientException catch (e) {
+      _log('[API] PATCH ClientException: $e');
+      throw NetworkException(_networkFailureMessage(e), originalError: e);
+    } on async.TimeoutException catch (e) {
+      _log('[API] PATCH Timeout: $e');
+      throw ApiTimeoutException(
+        _timeoutFailureMessage(
+          _buildUrlForBase(ApiConstants.baseUrl, endpoint),
+          includeAuth: includeAuth,
+        ),
+        originalError: e,
+      );
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      _log('[API] PATCH Unknown error: $e');
+      throw UnknownException(
+        'Unexpected error: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
   /// Make DELETE request
   Future<dynamic> delete(String endpoint, {bool includeAuth = true}) async {
     try {
@@ -645,9 +676,6 @@ class ApiClient {
             )
             .timeout(ApiConstants.connectionTimeout),
       );
-    } on SocketException catch (e) {
-      _log('[API] DELETE SocketException: $e');
-      throw NetworkException(_networkFailureMessage(e), originalError: e);
     } on http.ClientException catch (e) {
       _log('[API] DELETE ClientException: $e');
       throw NetworkException(_networkFailureMessage(e), originalError: e);

@@ -1,3 +1,5 @@
+import '../utils/remote_id_registry.dart';
+
 /// Subject model
 class Subject {
   final int id;
@@ -8,10 +10,13 @@ class Subject {
   Subject({required this.id, required this.name, this.code, this.description});
 
   factory Subject.fromJson(Map<String, dynamic> json) {
+    final id = RemoteIdRegistry.localId(json['id'], namespace: 'subject');
+    final name = json['name'] as String? ?? 'Subject #$id';
+    RemoteIdRegistry.registerSubjectName(id, name);
     return Subject(
-      id: json['id'] as int,
-      name: json['name'] as String,
-      code: json['code'] as String?,
+      id: id,
+      name: name,
+      code: json['code'] as String? ?? json['shortName'] as String?,
       description: json['description'] as String?,
     );
   }

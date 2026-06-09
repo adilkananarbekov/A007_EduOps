@@ -21,6 +21,8 @@ enum UserRole {
       case 'ADMINISTRATOR':
       case 'SUPER_ADMIN':
       case 'UNIVERSITY_ADMIN':
+      case 'MANAGER':
+      case 'MANAGEMENT':
         return UserRole.ADMIN;
       case 'ACCOUNTANT':
       case 'FINANCE':
@@ -29,6 +31,9 @@ enum UserRole {
         return UserRole.STUDENT;
       default:
         if (normalized.contains('ADMIN')) {
+          return UserRole.ADMIN;
+        }
+        if (normalized.contains('MANAGER')) {
           return UserRole.ADMIN;
         }
         if (normalized.contains('ACCOUNT')) {

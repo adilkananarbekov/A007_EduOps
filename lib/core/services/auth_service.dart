@@ -3,6 +3,7 @@ import '../api/api_constants.dart';
 import '../models/auth_response.dart';
 import '../models/user_role.dart';
 import '../storage/secure_storage_service.dart';
+import '../utils/remote_id_registry.dart';
 
 /// Service for handling authentication operations
 class AuthService {
@@ -108,7 +109,7 @@ class AuthService {
 
     final response = await _apiClient.post(
       ApiConstants.refresh,
-      body: {'refresh_token': refreshToken},
+      body: {'refreshToken': refreshToken},
       includeAuth: false,
     );
 
@@ -146,8 +147,21 @@ class AuthService {
   }
 
   String _normalizeRole(String role) {
-    final normalized = role.trim().toUpperCase();
-    return normalized.startsWith('ROLE_') ? normalized : 'ROLE_$normalized';
+    final normalized = role.trim().toUpperCase().replaceFirst('ROLE_', '');
+    switch (normalized) {
+      case 'ADMIN':
+      case 'ADMINISTRATOR':
+      case 'SUPER_ADMIN':
+      case 'MANAGER':
+      case 'MANAGEMENT':
+      case 'ACCOUNTANT':
+      case 'FINANCE':
+        return 'manager';
+      case 'TEACHER':
+        return 'teacher';
+      default:
+        return 'student';
+    }
   }
 
   Future<AuthResponse> _hydrateAuthResponse(
@@ -157,27 +171,14 @@ class AuthService {
     final email = (emailHint ?? authResponse.email).trim().toLowerCase();
     final nameFallback = _nameFromEmail(email);
 
-    final adminProfile = await _tryFetchAdminUserByEmail(email);
-    if (adminProfile != null) {
-      return authResponse.copyWith(
-        userId: adminProfile.userId,
-        email: adminProfile.email,
-        firstName: adminProfile.firstName,
-        lastName: adminProfile.lastName,
-        role: adminProfile.role,
-      );
-    }
-
-    final teacherProfile = await _tryFetchTeacherByEmail(email);
-    if (teacherProfile != null) {
-      return authResponse.copyWith(
-        userId: teacherProfile.userId,
-        email: teacherProfile.email,
-        firstName: teacherProfile.firstName,
-        lastName: teacherProfile.lastName,
-        role: UserRole.TEACHER,
-        profileId: teacherProfile.profileId,
-      );
+    try {
+      final response = await _apiClient.get('/auth/me');
+      if (response is Map<String, dynamic>) {
+        return _mergeUserProfile(authResponse, response, emailFallback: email);
+      }
+    } catch (_) {
+      // Keep the stored token usable even if profile hydration is temporarily
+      // unavailable; protected endpoints will still enforce the session.
     }
 
     return authResponse.copyWith(
@@ -191,75 +192,35 @@ class AuthService {
     );
   }
 
-  Future<_ResolvedUserProfile?> _tryFetchAdminUserByEmail(String email) async {
-    if (email.isEmpty) {
-      return null;
+  AuthResponse _mergeUserProfile(
+    AuthResponse authResponse,
+    Map<String, dynamic> json, {
+    required String emailFallback,
+  }) {
+    final className = (json['className'] as String?)?.trim();
+    final classGroupId = className == null || className.isEmpty
+        ? authResponse.classGroupId
+        : RemoteIdRegistry.localId(className, namespace: 'group_name');
+    if (className != null && className.isNotEmpty && classGroupId != null) {
+      RemoteIdRegistry.registerGroupName(classGroupId, className);
     }
 
-    try {
-      final response = await _apiClient.get(
-        '/admin/email/${Uri.encodeComponent(email)}',
-      );
-      final json = response as Map<String, dynamic>;
-      return _ResolvedUserProfile(
-        userId: _asInt(json['id']) ?? 0,
-        email: (json['email'] as String?)?.trim().toLowerCase() ?? email,
-        firstName:
-            (json['first_name'] as String?)?.trim() ??
-            (json['firstName'] as String?)?.trim() ??
-            '',
-        lastName:
-            (json['last_name'] as String?)?.trim() ??
-            (json['lastName'] as String?)?.trim() ??
-            '',
-        role: UserRole.fromString((json['role'] ?? '').toString()),
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<_ResolvedTeacherProfile?> _tryFetchTeacherByEmail(String email) async {
-    if (email.isEmpty) {
-      return null;
-    }
-
-    try {
-      final response = await _apiClient.get(ApiConstants.teachers);
-      for (final item in response as List<dynamic>) {
-        final json = item as Map<String, dynamic>;
-        final candidateEmail = (json['email'] as String?)?.trim().toLowerCase();
-        if (candidateEmail != email) {
-          continue;
-        }
-
-        return _ResolvedTeacherProfile(
-          profileId: _asInt(json['id']),
-          userId: _asInt(json['user_id']) ?? _asInt(json['userId']) ?? 0,
-          email: candidateEmail ?? email,
-          firstName:
-              (json['first_name'] as String?)?.trim() ??
-              (json['firstName'] as String?)?.trim() ??
-              '',
-          lastName:
-              (json['last_name'] as String?)?.trim() ??
-              (json['lastName'] as String?)?.trim() ??
-              '',
-        );
-      }
-    } catch (_) {}
-
-    return null;
-  }
-
-  int? _asInt(dynamic value) {
-    if (value is num) {
-      return value.toInt();
-    }
-    if (value is String) {
-      return int.tryParse(value);
-    }
-    return null;
+    return authResponse.copyWith(
+      userId: RemoteIdRegistry.localId(json['id'], namespace: 'user'),
+      email: (json['email'] as String?)?.trim().toLowerCase() ?? emailFallback,
+      firstName:
+          (json['firstName'] as String?)?.trim() ??
+          (json['first_name'] as String?)?.trim() ??
+          authResponse.firstName,
+      lastName:
+          (json['lastName'] as String?)?.trim() ??
+          (json['last_name'] as String?)?.trim() ??
+          authResponse.lastName,
+      role: UserRole.fromString(
+        (json['role'] ?? authResponse.role.name).toString(),
+      ),
+      classGroupId: classGroupId,
+    );
   }
 
   (String, String) _nameFromEmail(String email) {
@@ -291,36 +252,4 @@ class AuthService {
     }
     return '${value.substring(0, 1).toUpperCase()}${value.substring(1)}';
   }
-}
-
-class _ResolvedUserProfile {
-  final int userId;
-  final String email;
-  final String firstName;
-  final String lastName;
-  final UserRole role;
-
-  const _ResolvedUserProfile({
-    required this.userId,
-    required this.email,
-    required this.firstName,
-    required this.lastName,
-    required this.role,
-  });
-}
-
-class _ResolvedTeacherProfile {
-  final int? profileId;
-  final int userId;
-  final String email;
-  final String firstName;
-  final String lastName;
-
-  const _ResolvedTeacherProfile({
-    required this.profileId,
-    required this.userId,
-    required this.email,
-    required this.firstName,
-    required this.lastName,
-  });
 }

@@ -206,7 +206,9 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           }
         }
       }
-      selectedGroupReport ??= groupReports.isNotEmpty ? groupReports.first : null;
+      selectedGroupReport ??= groupReports.isNotEmpty
+          ? groupReports.first
+          : null;
 
       if (!mounted) return;
       setState(() {
@@ -554,13 +556,11 @@ class _StudentReport {
     return 'Stable';
   }
 
-  String get formattedAttendanceRate => attendanceRate == null
-      ? '—'
-      : '${attendanceRate!.round()}%';
+  String get formattedAttendanceRate =>
+      attendanceRate == null ? '—' : '${attendanceRate!.round()}%';
 
-  String get formattedAverageGrade => averageGrade == null
-      ? '—'
-      : '${averageGrade!.round()}%';
+  String get formattedAverageGrade =>
+      averageGrade == null ? '—' : '${averageGrade!.round()}%';
 }
 
 class _GroupReportCard extends StatelessWidget {
@@ -871,10 +871,7 @@ class _StudentReportTable extends StatelessWidget {
                             ),
                           ),
                         ),
-                        Expanded(
-                          flex: 2,
-                          child: _RiskBadge(report: report),
-                        ),
+                        Expanded(flex: 2, child: _RiskBadge(report: report)),
                         SizedBox(
                           width: 90,
                           child: TextButton(

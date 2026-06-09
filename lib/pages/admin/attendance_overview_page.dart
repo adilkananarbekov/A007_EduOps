@@ -53,10 +53,8 @@ class _AttendanceOverviewPageState
 
   int get _markedCount => _savedAttendanceByStudent.length;
 
-  int get _unmarkedCount => (_currentStudents.length - _markedCount).clamp(
-    0,
-    9999,
-  );
+  int get _unmarkedCount =>
+      (_currentStudents.length - _markedCount).clamp(0, 9999);
 
   bool get _isFullyMarked =>
       _hasSavedAttendance &&
@@ -177,7 +175,8 @@ class _AttendanceOverviewPageState
     Schedule schedule,
     DateTime date,
   ) async {
-    final matchedGroup = _findGroupById(schedule.classGroupId, _groups) ??
+    final matchedGroup =
+        _findGroupById(schedule.classGroupId, _groups) ??
         ClassGroup(
           id: schedule.classGroupId,
           name: schedule.classGroupName ?? 'Group #${schedule.classGroupId}',
@@ -337,7 +336,8 @@ class _AttendanceOverviewPageState
       requestedGroupId: _selectedGroup?.id,
     );
 
-    if (matchedSchedule != null && matchedSchedule.id != _selectedSchedule?.id) {
+    if (matchedSchedule != null &&
+        matchedSchedule.id != _selectedSchedule?.id) {
       await _applyScheduleSelectionForDate(matchedSchedule, date);
       return;
     }
@@ -404,7 +404,8 @@ class _AttendanceOverviewPageState
     final preferredToday = _weekdayName(DateTime.now());
 
     final candidates = schedules.where((schedule) {
-      if (requestedGroupId != null && schedule.classGroupId != requestedGroupId) {
+      if (requestedGroupId != null &&
+          schedule.classGroupId != requestedGroupId) {
         return false;
       }
       if (normalizedDay != null &&
@@ -412,8 +413,7 @@ class _AttendanceOverviewPageState
         return false;
       }
       return true;
-    }).toList()
-      ..sort(_compareSchedules);
+    }).toList()..sort(_compareSchedules);
 
     if (candidates.isNotEmpty) {
       for (final schedule in candidates) {
@@ -432,9 +432,9 @@ class _AttendanceOverviewPageState
   }
 
   int _compareSchedules(Schedule a, Schedule b) {
-    final weekdayCompare = _weekdayOrder(a.dayOfWeek).compareTo(
-      _weekdayOrder(b.dayOfWeek),
-    );
+    final weekdayCompare = _weekdayOrder(
+      a.dayOfWeek,
+    ).compareTo(_weekdayOrder(b.dayOfWeek));
     if (weekdayCompare != 0) {
       return weekdayCompare;
     }
@@ -444,9 +444,9 @@ class _AttendanceOverviewPageState
       return timeCompare;
     }
 
-    final groupCompare = (a.classGroupName ?? '')
-        .toLowerCase()
-        .compareTo((b.classGroupName ?? '').toLowerCase());
+    final groupCompare = (a.classGroupName ?? '').toLowerCase().compareTo(
+      (b.classGroupName ?? '').toLowerCase(),
+    );
     if (groupCompare != 0) {
       return groupCompare;
     }

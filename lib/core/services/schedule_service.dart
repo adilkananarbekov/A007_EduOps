@@ -1,6 +1,7 @@
 import '../api/api_client.dart';
 import '../api/api_constants.dart';
 import '../models/schedule.dart';
+import '../utils/remote_id_registry.dart';
 
 /// Service for schedule-related operations
 class ScheduleService {
@@ -18,8 +19,11 @@ class ScheduleService {
 
   /// Get class schedule
   Future<List<Schedule>> getClassSchedule(int classGroupId) async {
+    final className =
+        RemoteIdRegistry.groupName(classGroupId) ??
+        RemoteIdRegistry.remoteId(classGroupId);
     final response = await _apiClient.get(
-      ApiConstants.scheduleByClass(classGroupId),
+      '/schedule/classes/${Uri.encodeComponent(className)}',
     );
     return (response as List)
         .map((json) => Schedule.fromJson(json as Map<String, dynamic>))
@@ -29,7 +33,7 @@ class ScheduleService {
   /// Get teacher schedule
   Future<List<Schedule>> getTeacherSchedule(int teacherId) async {
     final response = await _apiClient.get(
-      ApiConstants.scheduleByTeacher(teacherId),
+      '/schedule/teachers/${Uri.encodeComponent(RemoteIdRegistry.remoteId(teacherId))}',
     );
     return (response as List)
         .map((json) => Schedule.fromJson(json as Map<String, dynamic>))
@@ -49,12 +53,17 @@ class ScheduleService {
     final response = await _apiClient.post(
       ApiConstants.schedule,
       body: {
-        'studentGroupId': classGroupId,
-        'classId': subjectId,
-        'dayOfWeek': dayOfWeek,
+        'className':
+            RemoteIdRegistry.groupName(classGroupId) ??
+            RemoteIdRegistry.remoteId(classGroupId),
+        'subjectName':
+            RemoteIdRegistry.subjectName(subjectId) ?? 'Subject #$subjectId',
+        'teacherId': RemoteIdRegistry.remoteId(teacherId),
+        'dayOfWeek': _dayNumber(dayOfWeek),
+        'lessonNumber': 1,
         'startTime': startTime,
         'endTime': endTime,
-        'room': room,
+        'room': room ?? '',
       },
     );
     return Schedule.fromJson(response as Map<String, dynamic>);
@@ -62,14 +71,34 @@ class ScheduleService {
 
   /// Generate schedule (admin)
   Future<List<Schedule>> generateSchedule() async {
-    final response = await _apiClient.post(ApiConstants.scheduleGenerate);
-    return (response as List)
-        .map((json) => Schedule.fromJson(json as Map<String, dynamic>))
-        .toList();
+    return getWeeklySchedule();
   }
 
   /// Delete schedule (admin)
   Future<void> deleteSchedule(int id) async {
-    await _apiClient.delete(ApiConstants.scheduleById(id));
+    await _apiClient.delete(
+      '/management/schedule/${Uri.encodeComponent(RemoteIdRegistry.remoteId(id))}',
+    );
+  }
+
+  int _dayNumber(String dayOfWeek) {
+    switch (dayOfWeek.trim().toUpperCase()) {
+      case 'MONDAY':
+        return 1;
+      case 'TUESDAY':
+        return 2;
+      case 'WEDNESDAY':
+        return 3;
+      case 'THURSDAY':
+        return 4;
+      case 'FRIDAY':
+        return 5;
+      case 'SATURDAY':
+        return 6;
+      case 'SUNDAY':
+        return 7;
+      default:
+        return int.tryParse(dayOfWeek) ?? 1;
+    }
   }
 }
