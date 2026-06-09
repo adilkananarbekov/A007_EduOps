@@ -2,24 +2,50 @@ import LoginForm from "@/components/LoginForm";
 
 export default function Login() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <div className="w-full max-w-md">
-        <div className="bg-gray-800 border border-border rounded-lg shadow-sm p-8">
-          {/* Logo and Brand */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 mb-4 bg-blue-500 rounded-lg">
-              <span className="text-3xl font-bold text-white">E</span>
-            </div>
-            <h1 className="text-3xl font-semibold text-foreground">EduOps</h1>
-            <p className="text-muted-foreground mt-2">School Management System</p>
-            <p className="text-sm text-muted-foreground mt-1">Ala-Too International University</p>
+    <main className="login-page">
+      <section className="login-story" aria-labelledby="login-title">
+        <div className="login-brand">
+          <div className="brand-mark large">E</div>
+          <div>
+            <p className="brand-kicker">EduOps React</p>
+            <h1 id="login-title">School operations without the noise.</h1>
           </div>
-
-          {/* Login Form */}
-          <LoginForm></LoginForm>
-
         </div>
-      </div>
-    </div>
+
+        <p className="login-copy">
+          A focused workspace for managers, teachers, and students. The React
+          client uses the same EduOps backend as the deployed Flutter app.
+        </p>
+
+        <div className="login-preview-grid">
+          <div className="preview-card">
+            <span>01</span>
+            <strong>Live API</strong>
+            <p>JWT auth, role-aware screens, users, lessons, tests, and reports.</p>
+          </div>
+          <div className="preview-card">
+            <span>02</span>
+            <strong>Course demo</strong>
+            <p>Demo accounts stay visible so the project is easy to defend.</p>
+          </div>
+          <div className="preview-card wide">
+            <span>03</span>
+            <strong>Desktop first</strong>
+            <p>Dense, readable layouts for repeated school operations work.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="login-panel" aria-label="Sign in">
+        <div className="panel-head">
+          <div>
+            <p className="eyebrow">Secure access</p>
+            <h2>Sign in</h2>
+          </div>
+          <span className="status-chip">Test mode</span>
+        </div>
+        <LoginForm />
+      </section>
+    </main>
   );
 }

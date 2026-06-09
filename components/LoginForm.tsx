@@ -1,77 +1,110 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { ApiError, API_BASE_URL, login } from "@/lib/api";
+import { storeTokens } from "@/lib/auth";
 
-const api = process.env.NEXT_PUBLIC_API_URL;
+const demoAccounts = [
+  { label: "Admin", email: "manager@eduops.kg", password: "12345678" },
+  { label: "Teacher", email: "teacher1@eduops.kg", password: "12345678" },
+  { label: "Student", email: "student1@eduops.kg", password: "12345678" },
+];
 
 export default function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("manager@eduops.kg");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Mock login - redirect to admin dashboard
-    // const res = await fetch("/api/v1/auth/login", {
-    const res = await fetch(`${api}/auth/login`, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    });
-    
-    if (!res.ok) {
-      console.error(res.status);
-      return;
+  async function submitLogin(nextEmail = email, nextPassword = password) {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const tokens = await login(nextEmail.trim(), nextPassword);
+      storeTokens(tokens);
+      router.replace("/dashboard");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Could not reach the EduOps API. Check CORS or network access.");
+      }
+    } finally {
+      setIsLoading(false);
     }
+  }
 
-    const data = await res.json();
-    // localStorage.setItem("userData", JSON.stringify(data));
-    localStorage.setItem("tokens", JSON.stringify(data));
-    // localStorage.setItem("role", data.role);
-    // console.log(data);
-    router.push("/");
-  };
+  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitLogin();
+  }
+
+  function fillDemo(emailValue: string, passwordValue: string) {
+    setEmail(emailValue);
+    setPassword(passwordValue);
+    void submitLogin(emailValue, passwordValue);
+  }
 
   return (
-    <form onSubmit={handleLogin} className="space-y-6">
-        <div className="space-y-2">
-            <div>Email</div>
-            <input
-            id="email"
-            type="email"
-            placeholder="user@gmail.com"
-            value={email}
-            onChange={(e: any) => setEmail(e.target.value)}
-            className="border-border w-full"
-            required
-            />
-        </div>
+    <form onSubmit={handleLogin} className="login-form">
+      <div className="api-pill">
+        <span>API</span>
+        <strong>{API_BASE_URL}</strong>
+      </div>
 
-        <div className="space-y-2">
-            <div>Password</div>
-            <input
-            id="password"
-            type="password"
-            placeholder="Enter your password"
-            value={password}
-            onChange={(e: any) => setPassword(e.target.value)}
-            className="border-border w-full"
-            required
-            />
-        </div>
+      <label className="field">
+        <span>Email</span>
+        <input
+          id="email"
+          type="email"
+          placeholder="manager@eduops.kg"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          autoComplete="username"
+          required
+        />
+      </label>
 
-        <button type="submit" className="w-full bg-blue-500 hover:bg-blue-400">
-            Log In
-        </button>
+      <label className="field">
+        <span>Password</span>
+        <input
+          id="password"
+          type="password"
+          placeholder="Enter password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          autoComplete="current-password"
+          required
+        />
+      </label>
 
-        <div className="text-center">
-            <a href="#" className="text-sm text-muted-foreground hover:text-foreground">
-            Forgot Password?
-            </a>
-        </div>
+      {error ? <div className="form-error">{error}</div> : null}
+
+      <button type="submit" className="primary-action" disabled={isLoading}>
+        {isLoading ? "Signing in..." : "Enter workspace"}
+      </button>
+
+      <div className="demo-row" aria-label="Demo accounts">
+        {demoAccounts.map((account) => (
+          <button
+            key={account.email}
+            type="button"
+            className="demo-button"
+            disabled={isLoading}
+            onClick={() => fillDemo(account.email, account.password)}
+          >
+            {account.label}
+          </button>
+        ))}
+      </div>
+
+      <p className="form-note">
+        Demo mode uses the shared course backend. Do not enter real student data
+        here.
+      </p>
     </form>
   );
 }
